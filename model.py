@@ -44,7 +44,7 @@ class Model:
     # deep copy of model
     def copy(self):
         p=self.__class__(Z=self.Z)
-        self._copyParamTo(p)
+        p._setParamfrom(self)
         return p
 
     def copyto(self, mod, force=False, forcep=False):
@@ -64,16 +64,16 @@ class Model:
         else:
             # self.name == mod.name
             mod.Z=self.Z
-            self._copyParamTo(mod, forcep)
+            mod._setParamfrom(self, forcep)
 
     def setfrom(self, mod, force=False, forcep=False):
         mod.copyto(self, force, forcep)
 
-    def _copyParamTo(self, mod, forcep=False):
+    def _setParamfrom(self, mod, forcep=False):
         # not check the match of type
         #     so be careful to use this function
         for key, param in self.params.items():
-            mod.params[key].setfrom(param, forcep)
+            param.setfrom(mod.params[key], forcep)
 
     # set parameters
     def setparams(self, vals=None, fits=None, fixs=None):
@@ -293,7 +293,7 @@ class Expdisk(Model):
         else:
             raise Exception('wrong destination type')
 
-        self._copyParamTo(mod, forcep)
+        mod._setParamfrom(self, forcep)
 
         # sequence of call:
         #     __getattr__, __imul__,
@@ -390,7 +390,7 @@ class Devauc(Model):
         else:
             raise Exception('wrong destination type')
 
-        self._copyParamTo(mod, forcep)
+        mod._setParamfrom(self, forcep)
         mod.n=4
 
         return mod
