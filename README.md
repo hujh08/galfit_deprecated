@@ -1,8 +1,8 @@
-package for edit of galfit template file
+# package for edit of galfit template file
 
-# modules
-## head
-## model
-## parameter
-## galfit
-## exception
+## modules
+### head
+### model
+### parameter
+### galfit
+### exception
