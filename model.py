@@ -15,11 +15,13 @@ mod_support={
     'Moffat', 'Ferrer', 'Expdisk', 'Sky',
 }
 
-def getClassname(name):
-    return '%s%s' % (name[0].upper(), name[1:].lower())
+#from string import capitalize
+# work in python2, fail python3
+#def getClassname(name):
+#    return '%s%s' % (name[0].upper(), name[1:].lower())
 
 def getClass(name):
-    classname=getClassname(name)
+    classname=name.capitalize()
     if classname not in mod_support:
         raise Exception('unsupported model: %s' % classname)
     #print(classname)
@@ -53,11 +55,11 @@ class Model:
             return
         if not force and self.name != mod.name:
             raise Exception('inconsistent model: from %s to %s' %
-                                (getClassname(self.name), 
-                                 getClassname(mod.name)))
+                                (self.name.capitalize(), 
+                                 mod.name.capitalize()))
         elif self.name != mod.name:
             # force and self.name != mod.name
-            convAttr='to%s' % getClassname(mod.name)
+            convAttr='to%s' % mod.name.capitalize()
             #print(convAttr)
             convFunc=getattr(self, convAttr)
             convFunc(self, mod, forcep)
@@ -164,12 +166,7 @@ class Model:
             if key not in self.params:
                 self.params[key]=Parameter()
 
-            if type(val)==int or type(val)==float:
-                #print('set number')
-                self.params[key].val=val
-            elif not self.params[key] is val:
-                #print('set Parameter')
-                self.params[key].setfrom(val)
+            self.params[key].setfrom(val)
 
         elif prop=='Z':
             # even existing attribution can call for this funciton

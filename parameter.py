@@ -70,6 +70,7 @@ class Parameter:
         param.fit, param.fix = self.fit, self.fix
 
     def setfrom(self, param, force=False):
+        #print('setfrom of parameter')
         if hasattr(param, '__float__'):
             self.val=float(param)
         elif not self is param:
