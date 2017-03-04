@@ -75,3 +75,9 @@ class Parameter:
             self.val=float(param)
         elif not self is param:
             param.copyto(self, force)
+
+    # print
+    def __str__(self):
+        return str('param', self.val)
+    def __repr__(self):
+        return str(('param', self.val, self.fit))

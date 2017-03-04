@@ -135,15 +135,12 @@ class Model:
         '''
         get parameters
         '''
-        if type(key)==int or type(key)==slice:
+        if type(key)==int:
             return self.params[self.params_req[key]]
-        elif type(key)==list:
-            result=[]
-            for k in key:
-                result.append(self[k])
-            return result
         elif type(key)==str:
             return self.params[self.getParamKey(key)]
+        else:
+            return [self[i] for i in key]
     def __setitem__(self, key, val):
         self[key].setfrom(val)
 
@@ -177,10 +174,10 @@ class Model:
 
     # cope with fit/fix state
     def setfit(self, fit=1):
-        for param in self.params:
+        for param in self.params.values():
             param.setfit(fit)
     def setfix(self, fix=1):
-        for param in self.params:
+        for param in self.params.values():
             param.setfix(fix)
 
     ## frequently used functions

@@ -149,8 +149,10 @@ class GalFit:
         '''
         if type(key)==str:
             return self.models[key]
-        else:
+        elif type(key)==int:
             return self.comps[key]
+        else:
+            return [self[i] for i in key]
     def __setitem__(self, key, val):
         if type(key)!=int:
             raise TypeError('only support integer for setitem')
