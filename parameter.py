@@ -20,6 +20,10 @@ class Parameter:
         #self.state=[val, fit, fix]
 
     # magic method
+    def __float__(self):
+        return self.val
+    def __int__(self):
+        return int(self.val)
     def __iadd__(self, num):
         self.val+=num
         return self
