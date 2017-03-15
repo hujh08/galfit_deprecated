@@ -138,12 +138,15 @@ class FitLogs:
 
         return result
 
-    # more convenient method to access logs
+    # convenient method to access logs
     def __getitem__(self, prop):
         if type(prop)==int:
             return self.logs[prop]
         elif type(prop)==str:
             return self.logsDict[prop]
+
+    def __contains__(self, prop):
+        return prop in self.logsDict
 
 class FitLog:
     def __init__(self, inputFits, region):
