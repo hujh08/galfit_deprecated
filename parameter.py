@@ -48,11 +48,6 @@ class Parameter:
         self.fix=fix
 
     ## frequently used functions
-    def fit(self):
-        self.setfit()
-    def fix(self):
-        self.setfix()
-
     def unfit(self):
         self.setfit(0)
     def unfix(self):
@@ -82,6 +77,6 @@ class Parameter:
 
     # print
     def __str__(self):
-        return str('param', self.val)
+        return 'param %f' % self.val
     def __repr__(self):
         return str(('param', self.val, self.fit))

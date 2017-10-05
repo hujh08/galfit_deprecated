@@ -76,7 +76,7 @@ class Head:
             for k in 'IK':
                 self.params[k]=['1', '1']
             self.params['E']='1'
-            self.params['H']=['1', '2', '1', '2']
+            self.params['H']=[1, 2, 1, 2]
             self.params['J']='20'
             self.params['O']='regular'
             self.params['P']='0'
@@ -91,7 +91,7 @@ class Head:
         if key not in 'HIK':
             self.params[key]=fields[1]
         elif key == 'H':
-            self.params[key]=fields[1:5]
+            self.params[key]=[int(i) for i in fields[1:5]]
         else:
             self.params[key]=fields[1:3]
 
@@ -149,7 +149,9 @@ class Head:
         lines=[]
         if self.params:
             for k in 'ABCDEFGHIJKOP':
-                if k in 'HIK':
+                if k=='H':
+                    valstr='%i %i %i %i' % tuple(self.params[k])
+                elif k in 'IK':
                     valstr=" ".join(self.params[k])
                 else:
                     valstr=self.params[k]

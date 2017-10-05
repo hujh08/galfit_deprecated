@@ -26,6 +26,8 @@ FUTURE:
     work for the complicated situation, like C0, Fn, Bn,
         might be implemented in the future if needed
 '''
+import os
+from astropy.io import fits
 
 from .head import Head
 from . import model as MODEL
@@ -154,9 +156,12 @@ class GalFit:
         else:
             return [self[i] for i in key]
     def __setitem__(self, key, val):
-        if type(key)!=int:
-            raise TypeError('only support integer for setitem')
-        self.comps[key].setfrom(val)
+        if type(key)==str:
+            self.head.__setattr__(key, val)
+        elif type(key)==int:
+            self.comps[key].setfrom(val)
+        else:
+            raise TypeError('unsupported type: %s', type(key))
 
     # update params list according to comps:
     #     always used after initiate or add/del comp
@@ -296,10 +301,10 @@ class GalFit:
 
     ### handle specific model
     def addSersic(self, *args, **keys):
-        self.addComp(MODEL.Sersic, *args, **keys)
+        self.addComp(MODEL.Sersic, len(self.comps), *args, **keys)
 
     def addSky(self, *args, **keys):
-        self.addComp(MODEL.Sky, *args, **keys)
+        self.addComp(MODEL.Sky, len(self.comps), *args, **keys)
 
     # functions to handle all fit/fix state of parameters
     def setfit(self, fit=1):
@@ -319,6 +324,37 @@ class GalFit:
         self.setfit(0)
     def unfix(self):
         self.setfix(0)
+
+    # handle parameters in models
+    def xyshift(self, xshift, yshift):
+        for comp in self.comps:
+            if not comp.issky():
+                comp.x0+=xshift
+                comp.y0+=yshift
+
+    # fitsname
+    def get_fitsNameID(self):
+        fitsname=self.input
+        if fitsname[-1]==']':
+            fitsname, hduid=fitsname[:-1].split('[')
+            hduid=int(hduid)
+        else:
+            hduid=0
+        return fitsname, hduid
+
+    def get_fitsHead(self):
+        return fits.getheader(*self.get_fitsNameID())
+
+    # about head parameters
+    def confirm_region(self):
+        fhead=self.get_fitsHead()
+        nx=fhead['NAXIS1']
+        ny=fhead['NAXIS2']
+        region=self.region
+        if region[1]>nx:
+            region[1]=nx
+        if region[3]>ny:
+            region[3]=ny
 
     # functions to print information
     def strLines(self):
@@ -359,7 +395,10 @@ class GalFit:
     def __str__(self):
         return '\n'.join(self.strLines())
 
-    def write(self, output=None, backup=True):
+    def __repr__(self):
+        return self.__str__()
+
+    def write(self, output=None, backup=False):
         '''
         convert the structures to template file
         '''
