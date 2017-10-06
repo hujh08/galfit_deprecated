@@ -9,6 +9,10 @@ import os
 def gfname(num):
     return 'galfit.%02i' % num
 
+# read galfit via file number
+def readgf(num):
+    return GalFit(gfname(num))
+
 # run galfit successively
 def rungf(init, change=None):
     '''

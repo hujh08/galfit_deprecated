@@ -325,6 +325,24 @@ class GalFit:
     def unfix(self):
         self.setfix(0)
 
+    # split sersic to 2 sersic
+    def sersicSplit(self, ind):
+        #  sersic0: bulge, sersic1: disk
+        sersic1=self[ind]
+        sersic1.mag+=0.30102999566398114  # plus log10(2)
+        sersic0=sersic1.copy()
+
+        self.addComp(sersic0, ind)
+
+        # update parameters
+        sersic0.re*=0.5
+        sersic1.re*=1.5
+
+        sersic0.n=4
+        sersic1.n=1
+
+        sersic0.ba=0.8
+
     # handle parameters in models
     def xyshift(self, xshift, yshift):
         for comp in self.comps:
