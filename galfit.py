@@ -374,6 +374,13 @@ class GalFit:
         if region[3]>ny:
             region[3]=ny
 
+    # method to set head
+    def bindcons(self, cons, name='contstraits'):
+        with open(name, 'w') as f:
+            for l in cons:
+                f.write(l+'\n')
+        self.constraints=name
+
     # functions to print information
     def strLines(self):
         lines=['==============================================',
