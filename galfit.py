@@ -27,7 +27,14 @@ FUTURE:
         might be implemented in the future if needed
 '''
 import os
+
+import warnings
+
+import numpy as np
 from astropy.io import fits
+from astropy.wcs import WCS as wcs
+from astropy.wcs.utils \
+    import proj_plane_pixel_scales as pixel_scales
 
 from .head import Head
 from . import model as MODEL
@@ -362,6 +369,17 @@ class GalFit:
 
     def get_fitsHead(self):
         return fits.getheader(*self.get_fitsNameID())
+
+    def get_pixscale(self):
+        '''
+        get pixel scale of initial fits
+            in unit of arcsec/pixel
+        '''
+        fhead=self.get_fitsHead()
+        with warnings.catch_warnings():
+            warnings.simplefilter("ignore")
+            w=wcs(fhead)
+        return np.average(pixel_scales(w))*3600 # arcsec/pixel
 
     # about head parameters
     def confirm_region(self):
