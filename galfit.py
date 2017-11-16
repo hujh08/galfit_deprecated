@@ -60,6 +60,7 @@ class GalFit:
         if filename or iterable or string:
             self.__dict__['head']=Head()
             if filename:
+                self.gfpath=os.path.dirname(filename)
                 with open(filename) as f:
                     self.parse(f)
             elif iterable:
@@ -365,6 +366,10 @@ class GalFit:
             hduid=int(hduid)
         else:
             hduid=0
+
+        if hasattr(self, 'gfpath'):
+            fitsname=os.path.join(self.gfpath, fitsname)
+        
         return fitsname, hduid
 
     def get_fitsHead(self):
