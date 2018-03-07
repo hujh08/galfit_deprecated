@@ -386,6 +386,24 @@ class GalFit:
             w=wcs(fhead)
         return np.average(pixel_scales(w))*3600 # arcsec/pixel
 
+    def get_exptime(self):
+        '''
+        get exptime of initial fits
+            in unit of seconds
+        '''
+        fhead=self.get_fitsHead()
+        if 'EXPTIME' not in fhead:
+            return 1.
+        return float(fhead['EXPTIME'])
+
+    def mag2flux(self, mag):
+        '''
+        convert mag in galfit to flux
+        '''
+        zerop=float(self.zerop)
+        exptime=self.get_exptime()
+        return 10**(-(mag-zerop)/2.5)*exptime
+
     # about head parameters
     def confirm_region(self):
         fhead=self.get_fitsHead()
