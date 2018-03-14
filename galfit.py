@@ -416,7 +416,7 @@ class GalFit:
             region[3]=ny
 
     # method to set head
-    def bindcons(self, cons, name='contstraints'):
+    def bindcons(self, cons, name='constraints'):
         with open(name, 'w') as f:
             for l in cons:
                 f.write(l+'\n')
