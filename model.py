@@ -1,237 +1,142 @@
 #!/usr/bin/env python3
 
 '''
-class for model supported by galfit,
-including:
-    sersic
-    sky
+class for galfit supported model
 '''
 
+from functools import partial
+
+from .collection import Collection
 from .parameter import Parameter
+from .containers import Container
 
-mod_support={
-    'Nuker', 'Devauc', 'Psf', 'King',
-    'Gaussian', 'Edgedisk', 'Sersic',
-    'Moffat', 'Ferrer', 'Expdisk', 'Sky',
-}
-
-#from string import capitalize
-# work in python2, fail python3
-#def getClassname(name):
-#    return '%s%s' % (name[0].upper(), name[1:].lower())
-
-def getClass(name):
-    classname=name.capitalize()
-    if classname not in mod_support:
-        raise Exception('unsupported model: %s' % classname)
-    #print(classname)
-    return globals()[classname]
-
-class Model:
+class Model(Collection):
     '''
-    basic class for model class
+    basic class for model
+
+    Properties
+    ----------
+    parameters: of class Parameters
+    Z: boolean
     '''
-    # default parameters for all model
-    # some model, like Sersic, may specify this property
-    params_default=[0]*10
-    def __init__(self, vals=None, Z=0,
-                       fits=None, fixs=None,
-                       emptyp=True):
+    default_values=[0]*10
+
+    fmt_value=4  # precise
+    len_valstr=24
+    len_keystr=2
+
+    comments={
+        '0' : 'Component type',
+        '1' : 'Position x, y',
+        'Z' : 'Skip this model? (yes=1, no=0)'
+    }
+
+    def __init__(self, vals=None, fixeds=None, Z=0, id=0):
+        super().__init__(Parameter)
+        self.__dict__['id']=int(id)
+        self.__dict__['Z']=Container(0)
         self.__dict__['name']=self.__class__.__name__.lower()
-        self.__dict__['Z']=Z
-        self.__dict__['params']={}
 
-        self.setparams(vals, fits, fixs)
+        self.Z.set(Z)
+        if vals!=None:
+            self.set_vals(vals)
+        if fixeds!=None:
+            self.set_fixeds(fixeds)
 
-    # deep copy of model
-    def copy(self):
-        p=self.__class__(Z=self.Z)
-        p._setParamfrom(self)
-        return p
+    # basic methods
+    def _get_param(self, key):
+        if key=='Z':
+            return self.Z
+        return super()._get_param(key)
 
-    def copyto(self, mod, force=False, forcep=False):
-        # forcep: force to change fit of parameters
-        if self is mod:
-            return
-        if not force and self.name != mod.name:
-            raise Exception('inconsistent model: from %s to %s' %
-                                (self.name.capitalize(), 
-                                 mod.name.capitalize()))
-        elif self.name != mod.name:
-            # force and self.name != mod.name
-            convAttr='to%s' % mod.name.capitalize()
-            #print(convAttr)
-            convFunc=getattr(self, convAttr)
-            convFunc(self, mod, forcep)
+    def _feed_key_fields(self, key, fields):
+        '''
+        feed in fields in a line seperated by whitespace
+            except the 1st field,
+                which is offered as key after removing the last ')'
+        '''
+        if key=='1' and not self.is_sky():
+            self._set_param('2', [fields[1], fields[3]])
+            val=[fields[0], fields[2]]
+        elif key=='Z':
+            val=fields[0]
         else:
-            # self.name == mod.name
-            mod.Z=self.Z
-            mod._setParamfrom(self, forcep)
+            val=fields[:2]
+        self._set_param(key, val)
 
-    def setfrom(self, mod, force=False, forcep=False):
-        mod.copyto(self, force, forcep)
+    # methods to set parameters
+    def _gen_set_field(self, vals, field):
+        if type(vals)!=dict:
+            vals=dict(zip(self.sorted_keys, vals))
 
-    def _setParamfrom(self, mod, forcep=False):
-        # not check the match of type
-        #     so be careful to use this function
-        for key, param in self.params.items():
-            param.setfrom(mod.params[key], forcep)
+        for k in vals:
+            getattr(self._get_param(k), 'set_'+field)(vals[k])
 
-    # set parameters
-    def setparams(self, vals=None, fits=None, fixs=None):
-        for key, val in zip(self.params_req, self.valIter(vals)):
-            self.params[key]=Parameter(val)
+    # methods about model
+    def get_model_name(self):
+        return self.name
 
-        if fits!=None or fits!=1:
-            for key, fit in zip(self.params_req,
-                                self.valIter(fits, 'fit')):
-                self.params[key].fit=fit
-        if fixs!=None or fixs!=0:
-            for key, fix in zip(self.params_req,
-                                self.valIter(fits, 'fix')):
-                self.params[key].fix=fix
+    def set_id(self, id):
+        self.id=int(id)
 
-    def valIter(self, vals=None, mod='val'):
-        '''
-        this also works for fits and fixs
-        '''
-        result=[]
-        l=len(self.params_req)
-        if hasattr(vals, '__iter__'):
-            if len(vals)<l:
-                raise Exception('no enough arguments for %s' % mod)
-            if type(vals)==dict:
-                for key in self.params_req:
-                    result.append(vals[key])
-            else:
-                return vals
-        elif vals==None:
-            if mod=='val':
-                result=self.params_default
-            elif mod=='fit':
-                result=[1]*l
-            elif mod=='fix':
-                result=[0]*l
-            else:
-                raise Exception('unsupported mod for valIter: %s'
-                                    % mod)
-        elif type(vals)==int or type(vals)==float:
-            result=[vals]*l
-        return result
+    def is_sky(self):
+        return False
 
-    # support alias name of parameters
-    def getParamKey(self, key):
-        '''
-        convert kinds key, like 're', 1, '1', to key in self.params
-        '''
-        if key in self.params_req:
-            return key
-        elif key in self.params_alias:
-            return self.params_alias[key]
-        else:
-            return None
+    def get_xy(self):
+        x0s=self._get_param('x0')._str_fields()
+        y0s=self._get_param('y0')._str_fields()
+        return ' '.join(map(' '.join, zip(x0s, y0s)))
 
-    def __getitem__(self, key):
-        '''
-        get parameters
-        '''
-        if type(key)==int:
-            return self.params[self.params_req[key]]
-        elif type(key)==str:
-            return self.params[self.getParamKey(key)]
-        else:
-            return [self[i] for i in key]
-    def __setitem__(self, key, val):
-        self[key].setfrom(val)
+    @classmethod
+    def get_all_models(cls):
+        return {m.__name__.lower(): m for m in cls.__subclasses__()}
+
+    @staticmethod
+    def get_model(name):
+        return Model.get_all_models()[name.lower()]
+
+    # magic methods
+    def __contains__(self, prop):
+        return prop in self.valid_keys or\
+               prop in self.alias_keys or\
+               prop == 'Z'
+
+    def __iter__(self):
+        return iter([self._get_param(k) for k in self.sorted_keys])
 
     def __getattr__(self, prop):
-        #print('getattr: %s' % prop)
-        key=self.getParamKey(prop)
-        if key!=None:
-            return self.params[key]
-        elif prop[:2]=='to':
-            raise Exception('unconvertible from %s to %s' %
-                                (self.__class__.__name__, prop[2:]))
-        else:
-            raise Exception('unsupported alias %s for %s' %
-                                (prop, self.name))
+        # collect fields, like vals, fixeds
+        if prop in {s+'s' for s in Parameter.valid_keys}:
+            return [p[prop[:-1]].get() for p in self]
 
-    def __setattr__(self, prop, val):
-        #print('setattr: %s' % prop)
-        key=self.getParamKey(prop)
-        if key!=None:
-            if key not in self.params:
-                self.params[key]=Parameter()
+        # methods to set single field, like set_vals, set_frees
+        if prop in {'set_'+s+'s' for s in Parameter.valid_keys}:
+            return partial(self._gen_set_field, field=prop[4:-1])
 
-            self.params[key].setfrom(val)
-
-        elif prop=='Z':
-            # even existing attribution can call for this funciton
-            # unlike __getattr__
-            self.__dict__['Z']=val
-        else:
-            raise Exception('unsupported alias for %s' % self.name)
-
-    # cope with fit/fix state
-    def setfit(self, fit=1):
-        for param in self.params.values():
-            param.setfit(fit)
-    def setfix(self, fix=1):
-        for param in self.params.values():
-            param.setfix(fix)
-
-    ## frequently used functions
-    def fit(self):
-        self.setfit()
-    def fix(self):
-        self.setfit()
-
-    def unfit(self):
-        self.setfit(0)
-    def unfix(self):
-        self.setfit(0)
-
-    # sky model has different format to print
-    def issky(self):
-        return isinstance(self, Sky)
-
-    # used to print
-    def strLines(self):
-        lines=[]
-        lines.append(" 0) %s    # Component type" % self.name)
-        params_req=self.params_req
-        if not self.issky():
-            params_req=params_req[2:]
-            xp=self.params['1']
-            yp=self.params['2']
-            lines.append(" 1) %f %f %i %i # Position x, y" %
-                         (xp.val, yp.val, xp.fit, yp.fit))
-
-        for key in params_req:
-            p=self.params[key]
-            comment=self.params_comments[key]
-            lines.append("%2s) %f %i     # %s" %
-                         (key, p.val, p.fit, comment))
-        ## handle Z
-        lines.append(" Z) %i # Skip this model? (yes=1, no=0)" %
-                     self.Z)
-
-        return lines
+        return super().__getattr__(prop)
 
     def __str__(self):
-        return '\n'.join(self.strLines())
+        keys=('0',)+self.sorted_keys+('Z',)
+        specials={'0': self.name}
+        if not self.is_sky():
+            keys=keys[:2]+keys[3:]
+            specials['1']=self.get_xy()
+        return self._str(keys, specials=specials)
 
 class Sersic(Model):
     '''
-    model sersic
+    sersic model
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '5', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '5', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## default parameters
-    params_default=[0, 0, 20, 10, 2, 1, 0]
+    default_values=[0, 0, 20, 10, 2, 1, 0]
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0' : '1',
         'y0' : '2',
         'mag': '3',
@@ -240,8 +145,9 @@ class Sersic(Model):
         'ba' : '9',
         'pa' : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'Integrated magnitude',
         '4' : 'R_e (effective radius) [pix]',
         '5' : 'Sersic index n (de Vaucouleurs n=4)',
@@ -251,18 +157,20 @@ class Sersic(Model):
 
     # convert to other model
 
-
 class Expdisk(Model):
     '''
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## default parameters
-    params_default=[0, 0, 20, 10, 1, 0]
+    default_values=[0, 0, 20, 10, 1, 0]
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0' : '1',
         'y0' : '2',
         'mag': '3',
@@ -270,13 +178,19 @@ class Expdisk(Model):
         'ba' : '9',
         'pa' : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
+        '0' : 'Component type',
         '3' : 'Integrated magnitude',
         '4' : 'R_s (disk scale-length) [pix]',
         '9' : 'Axis ratio (b/a)',
         '10': 'Position angle [deg: Up=0, Left=90]',
     }
+
+    for k in Model.comments:
+        if k not in comments:
+            comments[k]=Model.comments[k]
 
     # convert to other model
     def toSersic(self, dest=None, forcep=False):
@@ -302,10 +216,12 @@ class Edgedisk(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '5', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '5', '10')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0': '1',
         'y0': '2',
         'sb': '3',
@@ -313,8 +229,9 @@ class Edgedisk(Model):
         'dl': '5',
         'pa': '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'central surface brightness [mag/arcsec^2]',
         '4' : 'disk scale-height [Pixels]',
         '5' : 'disk scale-length [Pixels]',
@@ -326,10 +243,12 @@ class Nuker(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '5', '6', '7', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '5', '6', '7', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0'   : '1',
         'y0'   : '2',
         'mu'   : '3',
@@ -340,8 +259,9 @@ class Nuker(Model):
         'ba'   : '9',
         'pa'   : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'mu(Rb) [surface brightness mag. at Rb]',
         '4' : 'Rb [pixels]',
         '5' : 'alpha (sharpness of transition)',
@@ -356,10 +276,12 @@ class Devauc(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0' : '1',
         'y0' : '2',
         'mag': '3',
@@ -367,8 +289,9 @@ class Devauc(Model):
         'ba' : '9',
         'pa' : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'Integrated magnitude',
         '4' : 'R_e (effective radius) [pix]',
         '9' : 'Axis ratio (b/a)',
@@ -394,10 +317,12 @@ class Moffat(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '5', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '5', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0'  : '1',
         'y0'  : '2',
         'mag' : '3',
@@ -406,8 +331,9 @@ class Moffat(Model):
         'ba'  : '9',
         'pa'  : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'Integrated magnitude',
         '4' : 'FWHM [Pixels]',
         '5' : 'powerlaw',
@@ -420,10 +346,12 @@ class Ferrer(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '5', '6', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '5', '6', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0'   : '1',
         'y0'   : '2',
         'sb'   : '3',
@@ -433,8 +361,9 @@ class Ferrer(Model):
         'ba'   : '9',
         'pa'   : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'Central surface brghtness [mag/arcsec^2]',
         '4' : 'Outer truncation radius [pix]',
         '5' : 'Alpha (outer truncation sharpness)',
@@ -448,10 +377,12 @@ class Gaussian(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0'  : '1',
         'y0'  : '2',
         'mag' : '3',
@@ -459,8 +390,9 @@ class Gaussian(Model):
         'ba'  : '9',
         'pa'  : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'Integrated magnitude',
         '4' : 'FWHM [Pixels]',
         '9' : 'Axis ratio (b/a)',
@@ -472,10 +404,12 @@ class King(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3', '4', '5', '6', '9', '10')
+    ## valid parameters
+    sorted_keys=('1', '2', '3', '4', '5', '6', '9', '10')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0'   : '1',
         'y0'   : '2',
         'mu'   : '3',
@@ -485,8 +419,9 @@ class King(Model):
         'ba'   : '9',
         'pa'   : '10',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'mu(0)',
         '4' : 'Rc',
         '5' : 'Rt',
@@ -500,16 +435,19 @@ class Psf(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3')
+    ## valid parameters
+    sorted_keys=('1', '2', '3')
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'x0'  : '1',
         'y0'  : '2',
         'mag' : '3',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '3' : 'Integrated magnitude',
     }
 
@@ -518,17 +456,25 @@ class Sky(Model):
     model sersic
     '''
     # setup for model
-    ## required parameters
-    params_req=('1', '2', '3')
+    ## valid parameters
+    sorted_keys=('1', '2', '3')
+    valid_keys=set(sorted_keys)
+
+    fmt_value='%.3e'
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'bkg': '1',
         'dx' : '2',
         'dy' : '3',
     }
+
     ## comments for parameters
-    params_comments={
+    comments={
         '1' : 'Sky background [ADUs]',
         '2' : 'dsky/dx [ADUs/pix]',
         '3' : 'dsky/dx [ADUs/pix]',
     }
+
+    def is_sky(self):
+        return True

@@ -1,16 +1,23 @@
 #!/usr/bin/env python3
 
 '''
-handle head part of galfit template
+class of template's head, which contains head parameters A-P
 '''
 
-class Head:
+from .collection import Collection
+
+class Head(Collection):
     '''
-    class for head of galfit template
+    class to hold head parameters A-P
     '''
+
     # setup for head
+    ## valid parameters
+    sorted_keys='ABCDEFGHIJKOP'
+    valid_keys=set(sorted_keys)
+
     ## alias of parameters
-    params_alias={
+    alias_keys={
         'input': 'A',
         'output': 'B',
         'sigma': 'C',
@@ -25,9 +32,35 @@ class Head:
         'disp': 'O',
         'mod': 'P',
     }
-    ## alias name for chosen model, i.e. parameter 'P'
+
+    ## default parameters
+    default_values={
+        # Attention:
+        #   type of value will be maintained during changing
+        'A': 'none',
+        'B': 'none',
+        'C': 'none',
+        'D': 'none',
+        'E': 1,   # can only be an integer, see readme of galfit
+        'F': 'none',
+        'G': 'none',
+        'H': [0, 0, 0, 0],
+        'I': [0, 0],
+        'J': 20.,
+        'K': [1.0, 1.0],
+        'O': 'regular',
+        'P': '0',
+    }
+
+    fmt_value=3  # precise
+    len_valstr=19  # length of string of value
+
+    ## valid galfit mode parameters
+    valid_mod=set('012')
+
+    ## alias name for galfit mode, that is, parameter 'P'
     ## 0=optimize, 1=model, 2=imgblock, 3=subcomps
-    chosen_name={
+    alias_mod={
         'o': '0',
         'opt': '0',
         'optimize': '0',
@@ -41,8 +74,17 @@ class Head:
         'sub': '3',
         'subcomps': '3',
     }
+
+    ## valid display mode
+    valid_disp={'regular', 'curses', 'both'}
+
+    valid_values={
+        'O': [valid_disp],
+        'P': [valid_mod, alias_mod]
+    }
+
     ## comments for parameters
-    params_comments={
+    comments={
         'A': 'Input data image (FITS file)',
         'B': 'Output data image block',
         'C': 'Sigma image',
@@ -58,108 +100,23 @@ class Head:
         'P': '0=optimize, 1=model, 2=imgblock, 3=subcomps',
     }
 
-    # initiate function
-    def __init__(self, params={}, emptyp=True):
-        self.__dict__['params']={}
-        if not params and emptyp:
-            return
+    # methods of construction
+    ## basic interface of parameters
 
-        if params:
-            if type(params)!=dict:
-                raise Exception('expected type: dict, found %s'
-                                    % type(params))
-            for k in 'ABCDEFGHIJKOP':
-                self.params[k]=params[k]
-        else:
-            for k in 'ABCDFG':
-                self.params[k]='none'
-            for k in 'IK':
-                self.params[k]=['1', '1']
-            self.params['E']='1'
-            self.params['H']=[1, 2, 1, 2]
-            self.params['J']='20'
-            self.params['O']='regular'
-            self.params['P']='0'
-
-    # update funcitons
-    def feedLine(self, line):
+    def _feed_key_fields(self, key, fields):
         '''
-        feed with a line from galfit template
+        feed in fields in a line seperated by whitespace
+            except the 1st field,
+                which is offered as key after removing the last ')'
         '''
-        fields=line.split()
-        key=fields[0][0]
-        if key not in 'HIK':
-            self.params[key]=fields[1]
-        elif key == 'H':
-            self.params[key]=[int(i) for i in fields[1:5]]
+        if key in 'IK':
+            val=fields[:2]
+        elif key=='H':
+            val=fields[:4]
         else:
-            self.params[key]=fields[1:3]
+            val=fields[0]
+        self._set_param(key, val)
 
-    # functions for more convenient head handle
-    def __getattr__(self, prop):
-        #print('getattr %s' % prop)
-        if prop in Head.params_alias:
-            key=Head.params_alias[prop]
-            return self.params[key]
-        else:
-            raise Exception('unsupported property for Head: %s'
-                                % prop)
+    # magic methods, which is more convenient to use
     def __setattr__(self, prop, val):
-        #print('setattr: %s' % prop)
-        if prop in Head.params_alias:
-            key=Head.params_alias[prop]
-            if key in 'HIK':
-                if type(val)==str:
-                    val=val.split()
-                elif type(val)!=list:
-                    raise Exception('wrong type: expected str/list')
-
-                if key == 'H':
-                    if len(val)!=4:
-                        raise Exception('wrong value for region')
-                else:
-                    # for pscale or conv
-                    if len(val)!=2:
-                        raise Exception('wrong value for region %s'
-                                            % prop)
-            elif key=='P':
-                # special handle mod parameter to allow
-                #     giving meaningful model name, like 'block'
-                if val in Head.chosen_name:
-                    val=Head.chosen_name[val]
-                elif val not in '0123':
-                    raise Exception('unsupported chosen model')
-            self.params[key]=val
-        else:
-            raise Exception('unsupported property for Head: %s'
-                                % prop)
-
-    '''
-    # too many property. So switch to setattr
-    @property
-    def input(self):
-        return self.head['A']
-    @input.setter
-    def input(self, val):
-        return self.head['A']=val
-    '''
-
-    # function used for print
-    def strLines(self):
-        lines=[]
-        if self.params:
-            for k in 'ABCDEFGHIJKOP':
-                if k=='H':
-                    valstr='%i %i %i %i' % tuple(self.params[k])
-                elif k in 'IK':
-                    valstr=" ".join(self.params[k])
-                else:
-                    valstr=self.params[k]
-                lines.append(" %s) %s  # %s" %
-                             (k,
-                              valstr,
-                              Head.params_comments[k]))
-        return lines
-    def __str__(self):
-        return '\n'.join(self.strLines())
-
+        self._set_param(prop, val)

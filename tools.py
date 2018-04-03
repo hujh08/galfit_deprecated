@@ -2,16 +2,22 @@
 
 # some convenient tools to run galfit
 
-from .galfit import GalFit
 import os
 
 # convert template file number to its name
 def gfname(num):
     return 'galfit.%02i' % num
 
+# wrap GalFit
+def readgf(*args, **kwargs):
+    # wrap GalFit to avoid circular dependency
+    from .galfit import GalFit
+    return GalFit(*args, **kwargs)
+
 # read galfit via file number
-def readgf(num):
-    return GalFit(gfname(num))
+def readgf_no(num):
+    return readgf(gfname(num))
+
 
 # run galfit successively
 def rungf(init, change=None):
@@ -34,7 +40,7 @@ def rungf(init, change=None):
     fname=gfname(fno)
 
     if change!=None:
-        gf=GalFit(fname)
+        gf=readgf(fname)
         change(gf)
 
         fno+=1

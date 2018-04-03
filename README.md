@@ -1,6 +1,6 @@
 # package to handle galfit template file
 
-## State
+## Current Status
 
 preliminary version.
 
