@@ -15,14 +15,14 @@ from .tools import gfname
 
 class GalFit:
     valid_props={'comps', 'head',
-                 'cons',
+                 'gfcons',
                  'logname', 'init_file', 'gfpath'}
 
     def __init__(self, filename=None, loadlog=False, loadcons=False):
         self.comps=[]  # collection of components
         self.head=Head()
 
-        self.cons=Constraints()   # constraints
+        self.gfcons=Constraints(self.comps)   # constraints
 
         if filename!=None:
             if type(filename)==int:
@@ -42,7 +42,7 @@ class GalFit:
 
         if loadcons:
             cons=self.get_abs_hdp('cons')
-            self.cons._load_cons(cons, self.comps)
+            self.gfcons._load_file(cons)
 
     # construct from file
     def _load_file(self, filename):
@@ -209,12 +209,16 @@ class GalFit:
         if region[2]<1:
             region[2]=1
 
-    ## constraints
-    def bindcons(self, cons, name='constraints'):
-        with open(name, 'w') as f:
-            for l in cons:
-                f.write(l+'\n')
-        self.constraints=name
+    ## handle constraints
+    def bindcons(self, *args, name='constraints'):
+        self.head.set_param('cons', name)
+        self.add_cons(*args)
+
+    def add_cons(self, *args):
+        self.gfcons.add_cons(*args)
+
+    def clear_cons(self):
+        self.gfcons.clear()
 
     # handle components
     ## add/remove component
@@ -293,8 +297,10 @@ class GalFit:
         if type(filename)==int:
             filename=gfname(filename)
         with open(filename, 'w') as f:
-            f.write(self._str())
-            f.write('\n')
+            f.write(self._str()+'\n')
+
+        if not self.gfcons.is_empty():
+            self.gfcons.write(self.get_abs_hdp('cons'))
 
     # magic methods
     def __getattr__(self, prop):
