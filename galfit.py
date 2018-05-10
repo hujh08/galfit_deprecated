@@ -116,6 +116,14 @@ class GalFit:
             return 1.
         return float(fhead['EXPTIME'])
 
+    def func_mag2flux(self):
+        '''
+        return function to convert galfit mag to flux
+        '''
+        zerop=self.head.get_pval('zerop')
+        exptime=self.get_exptime()
+        return lambda mag: 10**(-(mag-zerop)/2.5)*exptime
+
     def get_wcs(self, warnings_filter='ignore'):
         '''
         return wcs of input image
@@ -172,6 +180,30 @@ class GalFit:
 
     def get_xy_region(self, *args):
         return self.func_xy_region()(*args)
+
+    def confirm_region(self):
+        '''
+        confirm the region not exceeding the image
+        '''
+        fhead=self.get_input_head()
+        nx=fhead['NAXIS1']
+        ny=fhead['NAXIS2']
+        region=self.head.get_param('region')
+        if region[1]>nx:
+            region[1]=nx
+        if region[3]>ny:
+            region[3]=ny
+        if region[0]<1:
+            region[0]=1
+        if region[2]<1:
+            region[2]=1
+
+    ## constraints
+    def bindcons(self, cons, name='constraints'):
+        with open(name, 'w') as f:
+            for l in cons:
+                f.write(l+'\n')
+        self.constraints=name
 
     # handle components
     ## add/remove component

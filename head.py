@@ -117,6 +117,3 @@ class Head(Collection):
             val=fields[0]
         self._set_param(key, val)
 
-    # magic methods, which is more convenient to use
-    def __setattr__(self, prop, val):
-        self._set_param(prop, val)

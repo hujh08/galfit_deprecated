@@ -89,5 +89,8 @@ class Vector(Scalar):
                             'but got %i ' % len(val))
         self.val[:]=[self.typef(s) for s in val]
 
+    def __setitem__(self, prop, val):
+        return self.val.__setitem__(prop, val)
+
     def __str__(self):
         return ' '.join([self.strf(s) for s in self.val])

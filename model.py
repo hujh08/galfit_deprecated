@@ -31,11 +31,13 @@ class Model(Collection):
         'Z' : 'Skip this model? (yes=1, no=0)'
     }
 
+    valid_props={'params', 'id', 'name', 'Z'}
+
     def __init__(self, vals=None, fixeds=None, Z=0, id=0):
         super().__init__(Parameter)
-        self.__dict__['id']=int(id)
-        self.__dict__['Z']=Container(0)
-        self.__dict__['name']=self.__class__.__name__.lower()
+        self.id=int(id)
+        self.Z=Container(0)
+        self.name=self.__class__.__name__.lower()
 
         self.Z.set(Z)
         if vals!=None:

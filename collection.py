@@ -25,6 +25,8 @@ class Collection:
 
     comments={}
 
+    valid_props={'params'}
+
     def __init__(self, container=Container, fmt=None):
         default_values=self.default_values
         if type(default_values)!=dict:
@@ -34,7 +36,7 @@ class Collection:
             fmt=self.fmt_value
 
         # collect containers in a dict
-        self.__dict__['params']={}
+        self.params={}
         for k in self.valid_keys:
             self.params[k]=container(default_values[k],
                                      *self.valid_values.get(k, []),
@@ -109,6 +111,13 @@ class Collection:
 
     def __getattr__(self, prop):
         return self._get_param(prop).get()
+
+    def __setattr__(self, prop, val):
+        if prop in self.valid_props:
+            # local property
+            super().__setattr__(prop, val)
+        else:
+            self._set_param(prop, val)
 
     # def __getitem__(self, prop):
     #     return self._get_param(prop)
