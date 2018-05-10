@@ -8,24 +8,21 @@ import os
 
 from .head import Head
 from .model import Model
-from .constraint import Constraint
+from .constraint import Constraints
 
 from .fitlog import FitLogs
 from .tools import gfname
 
 class GalFit:
     valid_props={'comps', 'head',
-                 'cons', 'cons_merge',
+                 'cons',
                  'logname', 'init_file', 'gfpath'}
 
     def __init__(self, filename=None, loadlog=False, loadcons=False):
         self.comps=[]  # collection of components
         self.head=Head()
 
-        self.cons=[]   # constraints
-        # merge constraints with same components and constraint type
-        #       only offset and ratio
-        self.cons_merge={}
+        self.cons=Constraints()   # constraints
 
         if filename!=None:
             if type(filename)==int:
@@ -45,7 +42,7 @@ class GalFit:
 
         if loadcons:
             cons=self.get_abs_hdp('cons')
-            self._load_cons(cons)
+            self.cons._load_cons(cons, self.comps)
 
     # construct from file
     def _load_file(self, filename):
@@ -83,25 +80,6 @@ class GalFit:
         for mod, lmod in zip(self.comps, log.mods):
             mod.set_uncerts(lmod.uncerts)
             mod.set_flags(lmod.flags)
-
-    def _load_cons(self, fcons):
-        with open(fcons) as f:
-            for line in f:
-                line=line.strip()
-                if not line or line[0]=='#':
-                    continue
-                cons=Constraint(line, self.comps)
-
-                cons_id=cons.get_uniq_id()
-
-                if cons_id==None:
-                    self.cons.append(cons)
-                else:
-                    if cons_id not in self.cons_merge:
-                        self.cons_merge[cons_id]=cons
-                        self.cons.append(cons)
-                    else:
-                        self.cons_merge[cons_id].add_params(cons.params)
 
     # handle head
     ## absolute path for a file in head

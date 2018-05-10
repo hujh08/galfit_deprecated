@@ -31,9 +31,7 @@ class Model(Collection):
         'Z' : 'Skip this model? (yes=1, no=0)'
     }
 
-    valid_props={'params', 'id', 'name', 'Z', 'uniq_id'}
-
-    UNIQ_ID_NOW=0  # unique id for a model
+    valid_props={'params', 'id', 'name', 'Z'}
 
     def __init__(self, vals=None, fixeds=None, Z=0, id=0):
         super().__init__(Parameter)
@@ -46,10 +44,6 @@ class Model(Collection):
             self.set_vals(vals)
         if fixeds!=None:
             self.set_fixeds(fixeds)
-
-        # unique id
-        self.uniq_id=Model.UNIQ_ID_NOW
-        Model.UNIQ_ID_NOW+=1
 
     # basic methods
     def _get_param(self, key):

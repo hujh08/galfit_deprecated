@@ -6,6 +6,31 @@ class for galfit contraint
 
 import re
 
+class Constraints:
+    '''
+    collection of lines of contraint
+    '''
+    def __init__(self, fname=None, comps=None):
+        self.cons=[]
+
+        if fname!=None:
+            self._load_cons(fname, comps)
+
+    def _load_cons(self, fname, comps):
+        with open(fname) as f:
+            for line in f:
+                line=line.strip()
+                if not line or line[0]=='#':
+                    continue
+                cons=Constraint(line, comps)
+                self.cons.append(cons)
+
+    def _str(self):
+        return '\n'.join(map(str, self.cons))
+
+    def __str__(self):
+        return self._str()
+
 class Constraint:
     def __init__(self, line, comps):
         cmtre=re.compile(r'\s*(\S[^#]*?)(\s*$|\s+#)')
@@ -16,8 +41,7 @@ class Constraint:
 
         comp_str, param, type_cons=m.group(1).split(maxsplit=2)
 
-        self.params=[param]
-        self.params_set={param}
+        self.param=param
 
         # parse component string
         sepre=re.compile(r'\d+(([-_/])\d+)*$')
@@ -51,30 +75,8 @@ class Constraint:
             else:
                 self.cons_type+='_around'
 
-    def add_param(self, param):
-        if param in self.params_set:
-            return
-        self.params.append(param)
-        self.params_set.add(param)
-
-    def add_params(self, params):
-        for p in params:
-            self.add_param(p)
-
-    def add_comp(self, comp):
-        self.comps.append(comp)
-
     def is_soft(self):
         return self.cons_type[:4]=='soft'
-
-    def get_uniq_id(self):
-        # only for offset and ratio
-        if self.is_soft():
-            return None
-
-        comp_uniq_ids=sorted({comp.uniq_id for comp in self.comps})
-        comp_str='_'.join(map(str, comp_uniq_ids))
-        return comp_str+' '+self.cons_type
 
     def _str(self):
         comp_ids=[str(comp.id) for comp in self.comps]
@@ -88,9 +90,7 @@ class Constraint:
         else:
             type_str=self.cons_type
 
-        lines=['%s %s %s' % (comp_str, p, type_str)
-                    for p in self.params]
-        return '\n'.join(lines)
+        return '%s %s %s' % (comp_str, self.param, type_str)
 
     def __str__(self):
         return self._str()
