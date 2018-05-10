@@ -12,27 +12,28 @@ from .fitlog import FitLogs
 from .tools import gfname
 
 class GalFit:
+    valid_props={'comps', 'head', 'logname', 'init_file', 'gfpath'}
+
     def __init__(self, filename=None, fitlog=False):
-        self.__dict__['comps']=[]  # collection of components
-        self.__dict__['head']=Head()
+        self.comps=[]  # collection of components
+        self.head=Head()
 
         if filename!=None:
             if type(filename)==int:
                 filename=gfname(filename)
 
             dirname=os.path.dirname(filename)
-            if dirname and dirname!='.':
-                self.filename=os.path.basename(filename)
-                self.gfpath=dirname
-            else:
-                self.filename=filename
+            basename=os.path.basename(filename)
+
+            self.gfpath=os.path.abspath(dirname)
+            self.logname=basename  # name used as file mark in fitlog
 
             self._load_file(filename)
 
         if fitlog:
             self._load_fitlog(fitlog)
 
-    # methods of construction
+    # construct from file
     def _load_file(self, filename):
         blk=self.head   # current block
         with open(filename) as f:
@@ -63,29 +64,114 @@ class GalFit:
             fitlog='fit.log'
         logs=FitLogs(fitlog)
         if not hasattr(self, 'init_file'):
-            log=logs.get_log(self.filename)
+            log=logs.get_log(self.logname)
         else:
-            log=logs.get_log(self.init_file, self.filename)
+            log=logs.get_log(self.init_file, self.logname)
 
         for mod, lmod in zip(self.comps, log.mods):
             mod.set_uncerts(lmod.uncerts)
             mod.set_flags(lmod.flags)
 
     # handle head
-    ## input data image
-    def get_fits_hdu(self):
+    ## absolute path for a file in head
+    def get_abs_fname(self, fname):
+        return os.path.abspath(os.path.join(self.gfpath, fname))
+
+    ## handle fits
+    def get_fits_hdu(self, fitsname):
         from astropy.io import fits
-        fitsname=self.input
         if fitsname[-1]==']':
             fitsname, hduid=fitsname[:-1].split('[')
             hduid=int(hduid)
         else:
             hduid=0
 
-        if hasattr(self, 'gfpath'):
-            fitsname=os.path.join(self.gfpath, fitsname)
-
         return fits.open(fitsname)[hduid]
+
+    ## handle input
+    def get_input_hdu(self):
+        fits_input=self.head.get_pval('input')
+        fits_input=self.get_abs_fname(fits_input)
+        return self.get_fits_hdu(fits_input)
+
+    def get_input_head(self):
+        return self.get_input_hdu().header
+
+    def get_input_data(self):
+        return self.get_input_hdu().data
+
+    def get_input_data_region(self):
+        xmin, xmax, ymin, ymax=self.head.get_pval('region')
+        data=self.get_input_data()
+        return data[(ymin-1):ymax, (xmin-1):xmax]
+
+    ### application of input head
+    def get_exptime(self):
+        '''
+        get exptime of initial fits
+            in unit of seconds
+        '''
+        fhead=self.get_input_head()
+        if 'EXPTIME' not in fhead:
+            return 1.
+        return float(fhead['EXPTIME'])
+
+    def get_wcs(self, warnings_filter='ignore'):
+        '''
+        return wcs of input image
+        '''
+        import warnings
+        from astropy.wcs import WCS as wcs
+        fhead=self.get_input_head()
+        with warnings.catch_warnings():
+            warnings.simplefilter(warnings_filter)
+            return wcs(fhead)
+
+    def func_pix2world(self, method='all', **kwargs_wcs):
+        '''
+        method: 'all' or 'wcs'
+            see astropy.wcs for details
+        '''
+        w=self.get_wcs(**kwargs_wcs)
+        fwcs=getattr(w, method+'_pix2world')
+        return lambda *args, origin=1, ra_dec_order=True:\
+                    fwcs(*args, origin, ra_dec_order=ra_dec_order)
+
+    def get_pixscale(self, **kwargs_wcs):
+        '''
+        return pixel scale of input fits
+            in unit of arcsec/pixel
+        '''
+        from astropy.wcs.utils import proj_plane_pixel_scales
+        import numpy as np
+        w=self.get_wcs(**kwargs_wcs)
+        pixel_scales=proj_plane_pixel_scales(w)*3600 # arcsec/pixel
+        return np.average(pixel_scales)
+
+    def func_pix2sec(self, **kwargs_wcs):
+        pscale=self.get_pixscale(**kwargs_wcs)
+        return lambda pix: pix*pscale
+
+    def func_sec2pix(self, **kwargs_wcs):
+        pscale=self.get_pixscale(**kwargs_wcs)
+        return lambda sec: sec/pscale
+
+    ## handle region
+    def get_region_shape(self):
+        xmin, xmax, ymin, ymax=self.head.get_pval('region')
+        return ymax-ymin+1, xmax-xmin+1
+
+    def func_xy_region(self):
+        '''
+        return a function,
+            which convert coordinates in original input to in region
+        '''
+        xmin, ymin=self.head.get_pval('region')[::2]
+
+        return lambda x, y: (x-xmin, y-ymin)
+
+    def get_xy_region(self, *args):
+        return self.func_xy_region()(*args)
 
     # handle components
     ## add/remove component
@@ -121,35 +207,12 @@ class GalFit:
         from .model import Sky
         self.add_comp(Sky, *args, **keys)
 
-    # magic methods
-    def __getattr__(self, prop):
-        if prop in self.head.alias_keys:
-            return getattr(self.head, prop)
-        
-        raise AttributeError(prop)
-
-    def __setattr__(self, prop, val):
-        if prop in self.head.alias_keys:
-            setattr(self.head, prop, val)
-        elif prop in {'filename', 'init_file', 'gfpath'}:
-            # local property
-            super().__setattr__(prop, val)
-        else:
-            raise AttributeError(prop)
-
     # output
     def _reset_comps_id(self, start=1):
         for i, comp in enumerate(self.comps, start):
             comp.set_id(i)
 
-    def write(self, filename, overwrite=True):
-        if type(filename)==int:
-            filename=gfname(filename)
-        with open(filename, 'w') as f:
-            f.write(self.__str__())
-            f.write('\n')
-
-    def __str__(self):
+    def _str(self):
         lines=['='*80,
                '# IMAGE and GALFIT CONTROL PARAMETERS']
         lines.append(str(self.head))
@@ -182,3 +245,35 @@ class GalFit:
         lines.append('='*80)
 
         return '\n'.join(lines)
+
+    def write(self, filename, overwrite=True):
+        if type(filename)==int:
+            filename=gfname(filename)
+        with open(filename, 'w') as f:
+            f.write(self._str())
+            f.write('\n')
+
+    # magic methods
+    def __getattr__(self, prop):
+        if prop in self.head.alias_keys:
+            return getattr(self.head, prop)
+        
+        raise AttributeError(prop)
+
+    def __setattr__(self, prop, val):
+        if prop in GalFit.valid_props:
+            # local property
+            super().__setattr__(prop, val)
+        elif prop in self.head.alias_keys:
+            setattr(self.head, prop, val)
+        else:
+            raise AttributeError(prop)
+
+    def __getitem__(self, prop):
+        if type(prop)==int:
+            return self.comps[prop]
+
+        return self.__getattr__(prop)
+
+    def __str__(self):
+        return self._str()

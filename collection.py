@@ -82,6 +82,22 @@ class Collection:
             lines.append('%*s) %-*s # %s' % (klen, k, vlen, v, c))
         return '\n'.join(lines)
 
+    # user methods
+    set_param=_set_param
+    get_param=_get_param
+
+    def get_pval(self, *args, **kwargs):
+        '''
+        get parameter's val
+        '''
+        return self._get_param(*args, **kwargs).get()
+
+    # def set_param(self, *args, **kwargs):
+    #     return self._set_param(*args, **kwargs)
+
+    # def get_param(self, *args, **kwargs):
+    #     return self._get_param(*args, **kwargs)
+
     def __str__(self, specials={}):
         return self._str(specials=specials)
 
