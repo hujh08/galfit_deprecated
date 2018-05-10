@@ -8,15 +8,24 @@ import os
 
 from .head import Head
 from .model import Model
+from .constraint import Constraint
+
 from .fitlog import FitLogs
 from .tools import gfname
 
 class GalFit:
-    valid_props={'comps', 'head', 'logname', 'init_file', 'gfpath'}
+    valid_props={'comps', 'head',
+                 'cons', 'cons_merge',
+                 'logname', 'init_file', 'gfpath'}
 
-    def __init__(self, filename=None, fitlog=False):
+    def __init__(self, filename=None, loadlog=False, loadcons=False):
         self.comps=[]  # collection of components
         self.head=Head()
+
+        self.cons=[]   # constraints
+        # merge constraints with same components and constraint type
+        #       only offset and ratio
+        self.cons_merge={}
 
         if filename!=None:
             if type(filename)==int:
@@ -30,8 +39,13 @@ class GalFit:
 
             self._load_file(filename)
 
-        if fitlog:
+        if loadlog:
+            fitlog=self.get_abs_fname('fit.log')
             self._load_fitlog(fitlog)
+
+        if loadcons:
+            cons=self.get_abs_hdp('cons')
+            self._load_cons(cons)
 
     # construct from file
     def _load_file(self, filename):
@@ -60,8 +74,6 @@ class GalFit:
                     blk._feed_key_fields(key, vals)
 
     def _load_fitlog(self, fitlog):
-        if type(fitlog)!=str:
-            fitlog='fit.log'
         logs=FitLogs(fitlog)
         if not hasattr(self, 'init_file'):
             log=logs.get_log(self.logname)
@@ -72,10 +84,32 @@ class GalFit:
             mod.set_uncerts(lmod.uncerts)
             mod.set_flags(lmod.flags)
 
+    def _load_cons(self, fcons):
+        with open(fcons) as f:
+            for line in f:
+                line=line.strip()
+                if not line or line[0]=='#':
+                    continue
+                cons=Constraint(line, self.comps)
+
+                cons_id=cons.get_uniq_id()
+
+                if cons_id==None:
+                    self.cons.append(cons)
+                else:
+                    if cons_id not in self.cons_merge:
+                        self.cons_merge[cons_id]=cons
+                        self.cons.append(cons)
+                    else:
+                        self.cons_merge[cons_id].add_params(cons.params)
+
     # handle head
     ## absolute path for a file in head
     def get_abs_fname(self, fname):
         return os.path.abspath(os.path.join(self.gfpath, fname))
+
+    def get_abs_hdp(self, prop):
+        return self.get_abs_fname(self.head.get_pval(prop))
 
     ## handle fits
     def get_fits_hdu(self, fitsname):
@@ -90,8 +124,7 @@ class GalFit:
 
     ## handle input
     def get_input_hdu(self):
-        fits_input=self.head.get_pval('input')
-        fits_input=self.get_abs_fname(fits_input)
+        fits_input=self.get_abs_hdp('input')
         return self.get_fits_hdu(fits_input)
 
     def get_input_head(self):

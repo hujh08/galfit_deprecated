@@ -25,6 +25,7 @@ class Head(Collection):
         'psfFactor': 'E',
         'mask': 'F',
         'constraints': 'G',
+        'cons': 'G',
         'region': 'H',
         'conv': 'I',
         'zerop': 'J',
