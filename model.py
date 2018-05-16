@@ -133,6 +133,9 @@ class Model(Collection):
         if prop in keys_set(Pkeys, 'set_', 's'):
             return partial(self._gen_set_field, field=prop[4:-1])
 
+        if prop=='xy':
+            return self.x0, self.y0
+
         if prop in self.alias_keys or prop.lower()=='z':
             return super().__getattr__(prop)
 
