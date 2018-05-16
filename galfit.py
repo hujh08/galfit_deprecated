@@ -205,14 +205,14 @@ class GalFit:
         '''
         return self._gen_func_to(modno, 'separation', **kwargs_mwcs)
 
-    def get_sep_to(self, ra, dec, modno=0, **kwargs_mwcs):
+    def get_sep_to(self, *radec, modno=0, **kwargs_mwcs):
         '''
         frequently used method to return separation to a position,
             choosing a representative model
             in unit of arcsec
         '''
         f=self.func_sep_to(modno, **kwargs_mwcs)
-        return f(ra, dec, 'arcsec')
+        return f(*radec, 'arcsec')
 
     def get_pixscale(self, **kwargs_wcs):
         '''
