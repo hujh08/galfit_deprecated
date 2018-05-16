@@ -134,7 +134,3 @@ class Head(Collection):
 
         if change_b:
             self.param_chdir('B', *args)
-
-    # handle model
-    def chmod(self, mod):
-        self.set_param('P', mod)
