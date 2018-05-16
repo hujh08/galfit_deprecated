@@ -18,7 +18,6 @@ def readgf(*args, **kwargs):
 def readgf_no(num):
     return readgf(gfname(num))
 
-
 # run galfit successively
 def rungf(init, change=None):
     '''

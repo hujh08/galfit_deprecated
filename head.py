@@ -6,6 +6,8 @@ class of template's head, which contains head parameters A-P
 
 from .collection import Collection
 
+from .tools_path import rel_chdir
+
 class Head(Collection):
     '''
     class to hold head parameters A-P
@@ -118,3 +120,21 @@ class Head(Collection):
             val=fields[0]
         self._set_param(key, val)
 
+
+    # handle path of ABCDEFG parameters
+    def param_chdir(self, key, src, dest):
+        param=self.get_param(key)
+        val=param.get()
+        if val!='none':
+            param.set(rel_chdir(val, src, dest))
+
+    def chdir(self, *args, change_b=False):
+        for p in 'ACDFG':
+            self.param_chdir(p, *args)
+
+        if change_b:
+            self.param_chdir('B', *args)
+
+    # handle model
+    def chmod(self, mod):
+        self.set_param('P', mod)

@@ -4,14 +4,15 @@
 class to hold parameters to run galfit
 '''
 
-import os
-
 from .head import Head
 from .model import Model
 from .constraint import Constraints
 
 from .fitlog import FitLogs
 from .tools import gfname
+
+from os.path import basename as os_basename
+from .tools_path import abs_dirname, abs_join
 
 class GalFit:
     valid_props={'comps', 'head',
@@ -28,11 +29,8 @@ class GalFit:
             if type(filename)==int:
                 filename=gfname(filename)
 
-            dirname=os.path.dirname(filename)
-            basename=os.path.basename(filename)
-
-            self.gfpath=os.path.abspath(dirname)
-            self.logname=basename  # name used as file mark in fitlog
+            self.gfpath=abs_dirname(filename)
+            self.logname=os_basename(filename) # name in fitlog
 
             self._load_file(filename)
 
@@ -84,7 +82,7 @@ class GalFit:
     # handle head
     ## absolute path for a file in head
     def get_abs_fname(self, fname):
-        return os.path.abspath(os.path.join(self.gfpath, fname))
+        return abs_join(self.gfpath, fname)
 
     def get_abs_hdp(self, prop):
         return self.get_abs_fname(self.head.get_pval(prop))
@@ -296,15 +294,30 @@ class GalFit:
     def write(self, filename, overwrite=True):
         if type(filename)==int:
             filename=gfname(filename)
+
+        wrpath=abs_dirname(filename)
+        if wrpath!=self.gfpath:
+            self.head.chdir(self.gfpath, wrpath)
+
         with open(filename, 'w') as f:
             f.write(self._str()+'\n')
 
         if not self.gfcons.is_empty():
             self.gfcons.write(self.get_abs_hdp('cons'))
 
+        # resume path of head
+        if wrpath!=self.gfpath:
+            self.head.chdir(wrpath, self.gfpath)
+
+    def chdir(self, dest, overwrite=True):
+        fname=abs_join(dest, self.logname)
+        self.write(fname, overwrite)
+
     # magic methods
     def __getattr__(self, prop):
         if prop in self.head.alias_keys:
+            return getattr(self.head, prop)
+        elif prop in {'chmod'}: # some head methods
             return getattr(self.head, prop)
         
         raise AttributeError(prop)
