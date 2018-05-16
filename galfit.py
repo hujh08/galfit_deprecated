@@ -318,6 +318,9 @@ class GalFit:
 
     # magic methods
     def __getattr__(self, prop):
+        if prop=='ncomp':
+            return len(self.comps)
+
         Hkeys=self.head.alias_keys
         if prop in Hkeys:
             return getattr(self.head, prop)
