@@ -14,7 +14,7 @@ from .constraint import Constraints
 
 from .fitlog import FitLogs
 from .tools import gfname
-from .tools_gf import keys_patt
+from .tools_gf import keys_patt, radec2skycoord
 
 from os.path import basename as os_basename
 from .tools_path import abs_dirname, abs_join
@@ -165,10 +165,54 @@ class GalFit:
             return fwcs(*args, origin, ra_dec_order=ra_dec_order)
         return func
 
-    def get_mod_radec(self, modno, **kwargs_func):
-        f=self.func_pix2world(**kwargs_func)
+    def get_mod_radec(self, modno, **kwargs_mwcs):
+        f=self.func_pix2world(**kwargs_mwcs)
         mod=self.comps[modno]
         return f(mod.get_xy())
+
+    def get_mod_skycoord(self, modno, **kwargs_mwcs):
+        '''
+        return center with SkyCoord type
+        '''
+        radec=self.get_mod_radec(modno, **kwargs_mwcs)
+        return radec2skycoord(radec)
+
+    def _gen_func_to(self, modno, method, **kwargs_mwcs):
+        '''
+        return a function to calculate something in respect to ith model,
+            like position angle, separation
+        '''
+        modskyc=self.get_mod_skycoord(modno, **kwargs_mwcs)
+        def _func(method, *args, unit='deg'):
+            skyc=radec2skycoord(*args)
+            return getattr(getattr(modskyc, method)(skyc), unit)
+        def func(*args, **kwargs):
+            if type(args[-1])==str and 'unit' not in kwargs:
+                kwargs['unit']=args[-1]
+                args=args[:-1]
+            return _func(*args, **kwargs)
+        return partial(func, method)
+
+    def func_pa_to(self, modno, **kwargs_mwcs):
+        '''
+        function to caculate position angle
+        '''
+        return self._gen_func_to(modno, 'position_angle', **kwargs_mwcs)
+
+    def func_sep_to(self, modno, **kwargs_mwcs):
+        '''
+        function to caculate seperation
+        '''
+        return self._gen_func_to(modno, 'separation', **kwargs_mwcs)
+
+    def get_sep_to(self, ra, dec, modno=0, **kwargs_mwcs):
+        '''
+        frequently used method to return separation to a position,
+            choosing a representative model
+            in unit of arcsec
+        '''
+        f=self.func_sep_to(modno, **kwargs_mwcs)
+        return f(ra, dec, 'arcsec')
 
     def get_pixscale(self, **kwargs_wcs):
         '''
