@@ -49,7 +49,7 @@ class Model(Collection):
 
     # basic methods
     def _get_param(self, key):
-        if key=='Z':
+        if key.lower()=='z':
             return self.Z
         return super()._get_param(key)
 
@@ -76,6 +76,19 @@ class Model(Collection):
         for k in vals:
             getattr(self._get_param(k), 'set_'+field)(vals[k])
 
+    def get_xy_string(self):
+        x0s=self._get_param('x0')._str_fields()
+        y0s=self._get_param('y0')._str_fields()
+        return ' '.join(map(' '.join, zip(x0s, y0s)))
+
+    def _str(self):
+        keys=('0',)+self.sorted_keys+('Z',)
+        specials={'0': self.name}
+        if not self.is_sky():
+            keys=keys[:2]+keys[3:]
+            specials['1']=self.get_xy_string()
+        return self._str(keys, specials=specials)
+
     # methods about model
     def get_model_name(self):
         return self.name
@@ -85,11 +98,6 @@ class Model(Collection):
 
     def is_sky(self):
         return False
-
-    def get_xy(self):
-        x0s=self._get_param('x0')._str_fields()
-        y0s=self._get_param('y0')._str_fields()
-        return ' '.join(map(' '.join, zip(x0s, y0s)))
 
     ## handle Z
     def skip_mod(self):
@@ -110,7 +118,7 @@ class Model(Collection):
     def __contains__(self, prop):
         return prop in self.valid_keys or\
                prop in self.alias_keys or\
-               prop == 'Z'
+               prop.lower() == 'z'
 
     def __iter__(self):
         return iter([self._get_param(k) for k in self.sorted_keys])
@@ -125,15 +133,11 @@ class Model(Collection):
         if prop in keys_set(Pkeys, 'set_', 's'):
             return partial(self._gen_set_field, field=prop[4:-1])
 
-        return super().__getattr__(prop)
+        if prop in self.alias_keys or prop.lower()=='z':
+            return super().__getattr__(prop)
 
     def __str__(self):
-        keys=('0',)+self.sorted_keys+('Z',)
-        specials={'0': self.name}
-        if not self.is_sky():
-            keys=keys[:2]+keys[3:]
-            specials['1']=self.get_xy()
-        return self._str(keys, specials=specials)
+        return self._str()
 
 class Sersic(Model):
     '''

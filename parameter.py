@@ -43,8 +43,8 @@ class Parameter(Collection):
             self._set_param(key, val[key])
 
     # methods of a container
-    def get(self):
-        return self
+    def get(self):  # return representative parameter
+        return self._get_param('val').get()
 
     def set(self, val):
         self._set_params(val)
