@@ -6,6 +6,8 @@ class to hold parameters to run galfit
 
 from functools import partial
 
+import numpy as np
+
 from .head import Head
 from .model import Model
 from .constraint import Constraints
@@ -154,8 +156,19 @@ class GalFit:
         '''
         w=self.get_wcs(**kwargs_wcs)
         fwcs=getattr(w, method+'_pix2world')
-        return lambda *args, origin=1, ra_dec_order=True:\
-                    fwcs(*args, origin, ra_dec_order=ra_dec_order)
+        def func(*args, origin=1, ra_dec_order=True):
+            # support 1 layer array
+            if len(args)==1:
+                arg0=np.array(args[0])
+                if len(arg0.shape)==1:
+                    args=tuple(arg0)
+            return fwcs(*args, origin, ra_dec_order=ra_dec_order)
+        return func
+
+    def get_mod_radec(self, modno, **kwargs_func):
+        f=self.func_pix2world(**kwargs_func)
+        mod=self.comps[modno]
+        return f(mod.get_xy())
 
     def get_pixscale(self, **kwargs_wcs):
         '''
@@ -163,7 +176,6 @@ class GalFit:
             in unit of arcsec/pixel
         '''
         from astropy.wcs.utils import proj_plane_pixel_scales
-        import numpy as np
         w=self.get_wcs(**kwargs_wcs)
         pixel_scales=proj_plane_pixel_scales(w)*3600 # arcsec/pixel
         return np.average(pixel_scales)

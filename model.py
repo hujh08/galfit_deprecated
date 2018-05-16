@@ -99,6 +99,13 @@ class Model(Collection):
     def is_sky(self):
         return False
 
+    # user method
+    def get_xy(self):
+        if self.is_sky():
+            raise AttributeError('no attribute: xy')
+
+        return self.get_pval('x0'), self.get_pval('y0')
+
     ## handle Z
     def skip_mod(self):
         self._set_param('Z', 1)
@@ -133,8 +140,8 @@ class Model(Collection):
         if prop in keys_set(Pkeys, 'set_', 's'):
             return partial(self._gen_set_field, field=prop[4:-1])
 
-        if prop=='xy':
-            return self.x0, self.y0
+        if not self.is_sky() and prop=='xy':
+            return self.get_xy()
 
         if prop in self.alias_keys or prop.lower()=='z':
             return super().__getattr__(prop)
