@@ -20,6 +20,11 @@ def keys_patt(keys, prefs=[], suffs=[]):
 
     return re.compile(restr+'$')
 
+# type check
+def support_list_indices(data):
+    import numbers
+    return isinstance(data, (numbers.Integral, slice))
+
 # skycoord
 def radec2skycoord(*args):
     if len(args)>2:

@@ -14,7 +14,8 @@ from .constraint import Constraints
 
 from .fitlog import FitLogs
 from .tools import gfname
-from .tools_gf import keys_patt, radec2skycoord
+from .tools_gf import keys_patt, radec2skycoord,\
+                      support_list_indices
 
 from os.path import basename as os_basename
 from .tools_path import abs_dirname, abs_join
@@ -373,6 +374,13 @@ class GalFit:
         self.write(fname, overwrite)
 
     # magic methods
+    def __iter__(self):
+        '''
+        Iteration's support for __getitem__
+            can be seen as a "legacy feature"
+        '''
+        return iter(self.comps)
+
     def __getattr__(self, prop):
         if prop=='ncomp':
             return len(self.comps)
@@ -399,7 +407,7 @@ class GalFit:
             raise AttributeError(prop)
 
     def __getitem__(self, prop):
-        if type(prop)==int:
+        if support_list_indices(prop):
             return self.comps[prop]
 
         return self.__getattr__(prop)
