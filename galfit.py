@@ -4,12 +4,15 @@
 class to hold parameters to run galfit
 '''
 
+from functools import partial
+
 from .head import Head
 from .model import Model
 from .constraint import Constraints
 
 from .fitlog import FitLogs
 from .tools import gfname
+from .tools_gf import keys_patt
 
 from os.path import basename as os_basename
 from .tools_path import abs_dirname, abs_join
@@ -315,10 +318,15 @@ class GalFit:
 
     # magic methods
     def __getattr__(self, prop):
-        if prop in self.head.alias_keys:
+        Hkeys=self.head.alias_keys
+        if prop in Hkeys:
             return getattr(self.head, prop)
-        elif prop in {'chmod'}: # some head methods
-            return getattr(self.head, prop)
+
+        # some head methods
+        Hmatch=keys_patt(Hkeys, ['ch', 'set_']).match(prop)
+        if Hmatch:
+            key=Hmatch.groupdict()['key']
+            return partial(self.head._set_param, key)
         
         raise AttributeError(prop)
 

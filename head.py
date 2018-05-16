@@ -59,7 +59,7 @@ class Head(Collection):
     len_valstr=19  # length of string of value
 
     ## valid galfit mode parameters
-    valid_mod=set('012')
+    valid_mod=set('0123')
 
     ## alias name for galfit mode, that is, parameter 'P'
     ## 0=optimize, 1=model, 2=imgblock, 3=subcomps

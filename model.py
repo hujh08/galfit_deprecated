@@ -10,6 +10,8 @@ from .collection import Collection
 from .parameter import Parameter
 from .containers import Container
 
+from .tools_gf import keys_set
+
 class Model(Collection):
     '''
     basic class for model
@@ -89,6 +91,13 @@ class Model(Collection):
         y0s=self._get_param('y0')._str_fields()
         return ' '.join(map(' '.join, zip(x0s, y0s)))
 
+    ## handle Z
+    def skip_mod(self):
+        self._set_param('Z', 1)
+
+    def keep_mod(self):
+        self._set_param('Z', 0)
+
     @classmethod
     def get_all_models(cls):
         return {m.__name__.lower(): m for m in cls.__subclasses__()}
@@ -107,12 +116,13 @@ class Model(Collection):
         return iter([self._get_param(k) for k in self.sorted_keys])
 
     def __getattr__(self, prop):
+        Pkeys=Parameter.valid_keys
         # collect fields, like vals, fixeds
-        if prop in {s+'s' for s in Parameter.valid_keys}:
+        if prop in keys_set(Pkeys, suff='s'):
             return [p[prop[:-1]].get() for p in self]
 
         # methods to set single field, like set_vals, set_frees
-        if prop in {'set_'+s+'s' for s in Parameter.valid_keys}:
+        if prop in keys_set(Pkeys, 'set_', 's'):
             return partial(self._gen_set_field, field=prop[4:-1])
 
         return super().__getattr__(prop)
