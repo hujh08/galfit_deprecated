@@ -87,7 +87,7 @@ class Model(Collection):
         if not self.is_sky():
             keys=keys[:2]+keys[3:]
             specials['1']=self.get_xy_string()
-        return self._str(keys, specials=specials)
+        return super()._str(keys, specials=specials)
 
     # methods about model
     def get_model_name(self):

@@ -5,8 +5,11 @@
 import os
 
 # convert template file number to its name
-def gfname(num):
-    return 'galfit.%02i' % num
+def gfname(num, path=None):
+    fname='galfit.%02i' % num
+    if path!=None:
+        fname=os.path.join(path, fname)
+    return fname
 
 # wrap GalFit
 def readgf(*args, **kwargs):
