@@ -139,6 +139,22 @@ class GalFit:
         exptime=self.get_exptime()
         return lambda mag: 10**(-(mag-zerop)/2.5)*exptime
 
+    def get_mod_flux(self, modno):
+        mod=self.comps[modno]
+        if mod.is_sky():
+            raise Exception('sky has no mag')
+        mag=mod.get_pval('mag')
+        return self.func_mag2flux()(mag)
+
+    def get_flux_total(self):
+        flux=0
+        f=self.func_mag2flux()
+        for mod in self.comps:
+            if mod.is_sky():
+                continue
+            flux+=f(mod.get_pval('mag'))
+        return flux
+
     def get_wcs(self, warnings_filter='ignore'):
         '''
         return wcs of input image
