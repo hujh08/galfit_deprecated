@@ -2,11 +2,14 @@
 
 import os
 
+# use realpath, not abspath, to eliminate symbolic links
+abspath=os.path.realpath
+
 def abs_dirname(fname):
-    return os.path.abspath(os.path.dirname(fname))
+    return abspath(os.path.dirname(fname))
 
 def abs_join(path, fname):
-    return os.path.abspath(os.path.join(path, fname))
+    return abspath(os.path.join(path, fname))
 
 def rel_chdir(fname, src, dest):
     absdir=abs_join(src, fname)
