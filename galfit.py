@@ -420,9 +420,10 @@ class GalFit:
         if wrpath!=self.gfpath:
             self.head.chdir(wrpath, self.gfpath)
 
-    def chdir(self, dest, overwrite=True):
+    def mvto(self, dest, overwrite=True):
         fname=abs_join(dest, self.logname)
         self.write(fname, overwrite)
+        return fname
 
     # magic methods
     def __iter__(self):
