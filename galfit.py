@@ -166,13 +166,13 @@ class GalFit:
             warnings.simplefilter(warnings_filter)
             return wcs(fhead)
 
-    def func_pix2world(self, method='all', **kwargs_wcs):
+    def func_wcs(self, method, **kwargs_wcs):
         '''
-        method: 'all' or 'wcs'
+        return methods, like pix2world, world2pix
             see astropy.wcs for details
         '''
         w=self.get_wcs(**kwargs_wcs)
-        fwcs=getattr(w, method+'_pix2world')
+        fwcs=getattr(w, method)
         def func(*args, origin=1, ra_dec_order=True):
             # support 1 layer array
             if len(args)==1:
@@ -182,10 +182,30 @@ class GalFit:
             return fwcs(*args, origin, ra_dec_order=ra_dec_order)
         return func
 
+    def func_pix2world(self, method='all', **kwargs_wcs):
+        '''
+        method: 'all' or 'wcs'
+            see astropy.wcs for details
+        '''
+        method=method+'_pix2world'
+        return self.func_wcs(method, **kwargs_wcs)
+
+    def func_world2pix(self, method='all', **kwargs_wcs):
+        '''
+        method: 'all' or 'wcs'
+        '''
+        method=method+'_world2pix'
+        return self.func_wcs(method, **kwargs_wcs)
+
+    def get_radec_at(self, *args, **kwargs_mwcs):
+        return self.func_pix2world(**kwargs_mwcs)(*args)
+
+    def get_xy_at(self, *args, **kwargs_mwcs):
+        return self.func_world2pix(**kwargs_mwcs)(*args)
+
     def get_mod_radec(self, modno, **kwargs_mwcs):
-        f=self.func_pix2world(**kwargs_mwcs)
         mod=self.comps[modno]
-        return f(mod.get_xy())
+        return self.get_radec_at(mod.get_xy(), **kwargs_mwcs)
 
     def get_mod_skycoord(self, modno, **kwargs_mwcs):
         '''
@@ -263,8 +283,23 @@ class GalFit:
 
         return lambda x, y: (x-xmin, y-ymin)
 
-    def get_xy_region(self, *args):
+    def func_world2region(self, **kwargs_wcs):
+        world2pix=self.func_world2pix(**kwargs_wcs)
+        pix2reg=self.func_xy_region()
+        return lambda *args: pix2reg(*world2pix(*args))
+
+    def get_xy_region_at_radec(self, *args):
+        return self.func_world2region()(*args)
+
+    def get_xy_region_at(self, *args):
         return self.func_xy_region()(*args)
+
+    def get_mod_xy_region(self, modno=0):
+        mod=self.comps[modno]
+        return self.get_xy_region_at(*mod.get_xy())
+
+    # use 1st comp as reprensative comp, and shorter name
+    get_xy_region=get_mod_xy_region
 
     def confirm_region(self):
         '''
