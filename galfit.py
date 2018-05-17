@@ -269,6 +269,9 @@ class GalFit:
         pscale=self.get_pixscale(**kwargs_wcs)
         return lambda sec: sec/pscale
 
+    def get_sec_of(self, pix):
+        return self.func_pix2sec()(pix)
+
     ## handle region
     def get_region_shape(self):
         xmin, xmax, ymin, ymax=self.head.get_pval('region')
