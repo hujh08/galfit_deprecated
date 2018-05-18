@@ -405,7 +405,7 @@ class GalFit:
 
         return '\n'.join(lines)
 
-    def write(self, dest, overwrite=True):
+    def write(self, dest='.', overwrite=True):
         '''
         dest: file or directory
         '''
