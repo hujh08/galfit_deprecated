@@ -2,8 +2,14 @@
 
 import os
 
-# use realpath, not abspath, to eliminate symbolic links
-abspath=os.path.realpath
+def abspath(path):
+    '''expand symbolic links of directories, not files'''
+    absp=os.path.abspath(path)
+    if os.path.isdir(absp) or not os.path.islink(absp):
+        return os.path.realpath(absp)
+    dirn=os.path.dirname(absp)
+    basn=os.path.basename(absp)
+    return os.join(os.path.realpath(dirn), basn)
 
 def abs_dirname(fname):
     return abspath(os.path.dirname(fname))
