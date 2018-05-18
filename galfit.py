@@ -405,16 +405,16 @@ class GalFit:
 
         return '\n'.join(lines)
 
-    def write(self, dest='.', overwrite=True):
+    def writeto(self, dest='.', overwrite=True):
         '''
         dest: file or directory
         '''
         if ospath.isdir(dest):
-            return self.write_atdir(dest, overwrite)
+            return self.writeto_dir(dest, overwrite)
         else:
-            return self.write_tofile(dest, overwrite)
+            return self.writeto_file(dest, overwrite)
 
-    def write_tofile(self, filename, overwrite=True):
+    def writeto_file(self, filename, overwrite=True):
         '''write to a file'''
         if type(filename)==int:
             filename=gfname(filename)
@@ -435,7 +435,7 @@ class GalFit:
 
         return filename
 
-    def write_atdir(self, diranme, overwrite=True):
+    def writeto_dir(self, diranme, overwrite=True):
         '''write at a directory'''
         fname=abs_join(diranme, self.logname)
         self.write(fname, overwrite)
