@@ -9,7 +9,7 @@ def abspath(path):
         return os.path.realpath(absp)
     dirn=os.path.dirname(absp)
     basn=os.path.basename(absp)
-    return os.join(os.path.realpath(dirn), basn)
+    return os.path.join(os.path.realpath(dirn), basn)
 
 def abs_dirname(fname):
     return abspath(os.path.dirname(fname))
