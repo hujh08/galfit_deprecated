@@ -438,7 +438,7 @@ class GalFit:
     def writeto_dir(self, diranme, overwrite=True):
         '''write at a directory'''
         fname=abs_join(diranme, self.logname)
-        self.write(fname, overwrite)
+        self.writeto_file(fname, overwrite)
         return fname
 
     # magic methods
