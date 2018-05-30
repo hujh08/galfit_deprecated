@@ -272,6 +272,23 @@ class GalFit:
     def get_sec_of(self, pix):
         return self.func_pix2sec()(pix)
 
+    ## handle psf
+    def get_psf_hdu(self):
+        fits_input=self.get_abs_hdp('psf')
+        return self.get_fits_hdu(fits_input)
+
+    def get_psf_head(self):
+        return self.get_psf_hdu().header
+
+    def get_psf_data(self):
+        return self.get_psf_hdu().data
+
+    def get_psf_fwhm(self):
+        fhead=self.get_psf_head()
+        if 'FWHM' not in fhead:
+            return None
+        return float(fhead['FWHM'])
+
     ## handle region
     def get_region_shape(self):
         xmin, xmax, ymin, ymax=self.head.get_pval('region')
