@@ -120,6 +120,9 @@ class GalFit:
         data=self.get_input_data()
         return data[(ymin-1):ymax, (xmin-1):xmax]
 
+    def get_input_shape(self):
+        return self.get_input_data().shape
+
     ### application of input head
     def get_exptime(self):
         '''
