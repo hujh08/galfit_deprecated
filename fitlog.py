@@ -178,7 +178,7 @@ class LogMod:
             self.uncerts.append(val)
 
     def _parse_item(self, val):
-        ends='][()*,'
+        ends='][()*,}{'
         pattern=r'^([{0}]*)([^{0}]*)([{0}]*)$'.format(ends)
         m=re.match(pattern, val)
         if not m:
