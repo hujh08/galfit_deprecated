@@ -21,9 +21,12 @@ import os.path as ospath
 from .tools_path import abs_dirname, abs_join
 
 class GalFit:
+    log_props=['ndof', 'chisq', 'reduce_chisq'] # properties in figlog to store
+
     valid_props={'comps', 'head',
                  'gfcons',
-                 'logname', 'init_file', 'gfpath'}
+                 'logname', '_log', *log_props,
+                 'init_file', 'gfpath'}
 
     def __init__(self, filename=None, loadlog=False, loadcons=False):
         self.comps=[]  # collection of components
@@ -81,9 +84,15 @@ class GalFit:
         else:
             log=logs.get_log(self.init_file, self.logname)
 
+        self._log=log   # backup fitlog
+
         for mod, lmod in zip(self.comps, log.mods):
             mod.set_uncerts(lmod.uncerts)
             mod.set_flags(lmod.flags)
+
+        # get information of fit
+        for param in GalFit.log_props:
+            setattr(self, param, getattr(log, param))
 
     # handle head
     ## absolute path for a file in head
