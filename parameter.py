@@ -49,7 +49,12 @@ class Parameter(Collection):
     def set(self, val):
         self._set_params(val)
 
-    # change field `tofit`
+    # Property `tofit`
+    ## determine function
+    def is_fixed(self):
+        return self.tofit==0
+        
+    ## change field
     def free(self):
         self.tofit.set(1)
 

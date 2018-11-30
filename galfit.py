@@ -361,7 +361,33 @@ class GalFit:
     def clear_cons(self):
         self.gfcons.clear()
 
+    def get_num_of_hard_free_params(self):
+        '''
+        number of free parameters limited by hard constraint
+        '''
+        return self.gfcons.get_num_of_hard_free_params()
+
     # handle components
+    ## information of parameters
+    def get_num_of_params(self):
+        '''
+        total number of parameters
+        '''
+        return sum([p.get_num_of_params() for p in self.comps])
+
+    def get_num_of_fixed_params(self):
+        '''
+        total number of parameters
+        '''
+        return sum([p.get_num_of_fixed_params() for p in self.comps])
+
+    def get_num_of_free_params(self):
+        num_tot=self.get_num_of_params()
+        num_fixed=self.get_num_of_fixed_params()
+        num_hard=self.get_num_of_hard_free_params()
+
+        return num_tot-num_fixed-num_hard
+
     ## add/remove component
     def add_comp(self, mod, vals=None, tofits=None, Z=0, index=0):
         '''

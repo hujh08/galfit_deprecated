@@ -33,6 +33,13 @@ class Constraints:
     def is_empty(self):
         return not self.cons
 
+    # get methods
+    def get_num_of_hard_free_params(self):
+        '''
+        number of free parameters limited by hard constraint
+        '''
+        return sum([c.get_num_of_hard_free_params() for c in self.cons])
+
     ## add/remove constraints
     def clear(self):
         self.cons.clear()
@@ -67,6 +74,15 @@ class Constraint:
         'soft_around': '',
         'soft_sub': '-',
         'soft_div': '/'
+    }
+
+    # map between name of parameter in constrain and model
+    #     if not exist in map_params dict, it is same between two names
+    map_params={
+        'x': '1',  # 'x0'
+        'y': '2',  # 'y0'
+        'rs': '4', # 're'/'rs'
+        're': '4', # 're'/'rs'
     }
 
     def __init__(self, comps, *args, **kwargs):
@@ -125,6 +141,7 @@ class Constraint:
         comp_str, param, type_cons=m.group(1).split(maxsplit=2)
 
         self.param=param
+        self.param_mod=self.get_name_of_param_in_mod(param)  # name in model class
 
         # parse component string
         comp_ids, sep=self._parse_comp(comp_str)
@@ -184,9 +201,50 @@ class Constraint:
     def _get_sep(self, ctype):
         return self.sep_cons[ctype]
 
-    # user methods
+    # determine methods
+    def is_hard(self):
+        return self.cons_type in {'offset', 'ratio'}
+
+    def is_any_fixed(self):
+        '''
+        any parameter limited by this constraint is fixed
+        '''
+        return any(self._get_is_fixed_params())
+
     def is_soft(self):
         return self.cons_type[:4]=='soft'
+
+    # get methods
+    def get_name_of_param_in_mod(self, param):
+        '''
+        get name of parameters in model class
+        '''
+        if param in Constraint.map_params:
+            return Constraint.map_params[param]
+        else:
+            return param
+
+    def _get_is_fixed_params(self):
+        param=self.param_mod
+        return [mod.get_param(param).is_fixed() for mod in self.comps]
+
+    def get_num_of_hard_free_params(self):
+        '''
+        number of free parameters limited by hard constraint
+
+        e.g. if n parameters are linked by offfset/ratio, n-1 ndof will be deleted
+        '''
+        if self.is_hard():
+            fixeds=self._get_is_fixed_params()
+
+            num_tot=len(fixeds)
+            num_fix=sum(fixeds)
+            if num_fix==0:
+                return num_tot-1
+            else:
+                return num_tot-num_fix
+        else:
+            return 0
 
     def _str(self):
         comp_ids=[str(comp.id) for comp in self.comps]

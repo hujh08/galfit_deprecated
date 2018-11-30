@@ -68,6 +68,25 @@ class Model(Collection):
             val=fields[:2]
         self._set_param(key, val)
 
+    # methods to get parameters' information
+    def get_num_of_params(self):
+        '''
+        number of parameters
+        '''
+        return len(self.valid_keys)
+
+    def get_num_of_fixed_params(self):
+        '''
+        number of fixed parameters
+        '''
+        return sum([self._get_param(p).is_fixed() for p in self.valid_keys])
+
+    def get_num_of_free_params(self):
+        '''
+        number of fixed parameters
+        '''
+        return self.get_num_of_params()-self.get_num_of_fixed_params()
+
     # methods to set parameters
     def _gen_set_field(self, vals, field):
         if type(vals)!=dict:
