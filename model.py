@@ -35,7 +35,7 @@ class Model(Collection):
 
     valid_props={'params', 'id', 'name', 'Z'}
 
-    def __init__(self, vals=None, fixeds=None, Z=0, id=0):
+    def __init__(self, vals=None, tofits=None, Z=0, id=0):
         super().__init__(Parameter)
         self.id=int(id)  # id used for output
         self.Z=Container(0)
@@ -44,8 +44,8 @@ class Model(Collection):
         self.Z.set(Z)
         if vals!=None:
             self.set_vals(vals)
-        if fixeds!=None:
-            self.set_fixeds(fixeds)
+        if tofits!=None:
+            self.set_tofits(tofits)
 
     # basic methods
     def _get_param(self, key):
@@ -132,7 +132,7 @@ class Model(Collection):
 
     def __getattr__(self, prop):
         Pkeys=Parameter.valid_keys
-        # collect fields, like vals, fixeds
+        # collect fields, like vals, tofits
         if prop in keys_set(Pkeys, suff='s'):
             return [p[prop[:-1]].get() for p in self]
 

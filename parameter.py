@@ -15,16 +15,16 @@ class Parameter(Collection):
     Properties
     ----------
         val: value
-        free: free for fit
+        tofit: free for fit if 1; hold fixed if 0
     '''
-    sorted_keys=('val', 'fixed', 'uncert', 'flag')
+    sorted_keys=('val', 'tofit', 'uncert', 'flag')
     valid_keys=set(sorted_keys)
 
     default_values=[0., 0, -1., 'normal']
 
-    def __init__(self, val=0., fixed=0, uncert=-1., fmt=4):
+    def __init__(self, val=0., tofit=0, uncert=-1., fmt=4):
         super().__init__(fmt=fmt)
-        self.set([val, fixed, uncert])
+        self.set([val, tofit, uncert])
 
     def keys(self):
         return Parameter.sorted_keys
@@ -49,12 +49,12 @@ class Parameter(Collection):
     def set(self, val):
         self._set_params(val)
 
-    # chage fixed
+    # change field `tofit`
     def free(self):
-        self.fixed.set(1)
+        self.tofit.set(1)
 
     def frozen(self):
-        self.fixed.set(0)
+        self.tofit.set(0)
 
     # magic methods
     def __getattr__(self, prop):

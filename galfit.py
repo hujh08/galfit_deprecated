@@ -363,7 +363,7 @@ class GalFit:
 
     # handle components
     ## add/remove component
-    def add_comp(self, mod, vals=None, fixeds=None, Z=0, index=0):
+    def add_comp(self, mod, vals=None, tofits=None, Z=0, index=0):
         '''
         add component before index
         '''
@@ -374,7 +374,7 @@ class GalFit:
                 mod=Model.get_model(mod)
             elif not issubclass(mod, Model):
                 raise TypeError('unsupported model type: %s' % type(mod))
-            modnew=mod(vals=vals, fixeds=fixeds, Z=Z)
+            modnew=mod(vals=vals, tofits=tofits, Z=Z)
         else:
             raise TypeError('unsupported model type: %s' % type(mod))
 
