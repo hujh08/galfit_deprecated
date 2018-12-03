@@ -47,7 +47,7 @@ class GalFit:
             fitlog=self.get_abs_fname('fit.log')
             self._load_fitlog(fitlog)
 
-        if loadall or loadcons:
+        if (loadall or loadcons) and not self.is_none_cons():
             cons=self.get_abs_hdp('cons')
             self.gfcons._load_file(cons)
 
@@ -360,6 +360,9 @@ class GalFit:
 
     def clear_cons(self):
         self.gfcons.clear()
+
+    def is_none_cons(self):
+        return self.head.get_pval('cons')=='none'
 
     def get_num_of_hard_free_params(self):
         '''
