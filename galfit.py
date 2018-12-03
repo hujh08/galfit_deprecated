@@ -28,7 +28,7 @@ class GalFit:
                  'logname', '_log', *log_props,
                  'init_file', 'gfpath'}
 
-    def __init__(self, filename=None, loadlog=False, loadcons=False):
+    def __init__(self, filename=None, loadlog=False, loadcons=False, loadall=False):
         self.comps=[]  # collection of components
         self.head=Head()
 
@@ -43,11 +43,11 @@ class GalFit:
 
             self._load_file(filename)
 
-        if loadlog:
+        if loadall or loadlog:
             fitlog=self.get_abs_fname('fit.log')
             self._load_fitlog(fitlog)
 
-        if loadcons:
+        if loadall or loadcons:
             cons=self.get_abs_hdp('cons')
             self.gfcons._load_file(cons)
 
