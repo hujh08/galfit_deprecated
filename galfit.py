@@ -422,7 +422,13 @@ class GalFit:
         '''
         del self.comps[index]
 
-    ### some specific models
+    def dup_comp(self, index=0, index_dup=None, num_dup=1):
+        '''
+        duplicate component inserted just after it by default
+        '''
+        pass
+
+    ### frequently used models
     def add_sersic(self, *args, **keys):
         from .model import Sersic
         self.add_comp(Sersic, *args, **keys)
@@ -430,6 +436,12 @@ class GalFit:
     def add_sky(self, *args, **keys):
         from .model import Sky
         self.add_comp(Sky, *args, **keys)
+
+    def split_sersic(self, index):
+        '''
+        split sersic to 2 components
+        '''
+        pass
 
     ## free/freeze all parameters
     def set_all_comps_fit(self, tofit):

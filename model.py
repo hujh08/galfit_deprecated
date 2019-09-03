@@ -35,7 +35,7 @@ class Model(Collection):
 
     valid_props={'params', 'id', 'name', 'Z'}
 
-    def __init__(self, vals=None, tofits=None, Z=0, id=0):
+    def __init__(self, vals=None, tofits=None, Z=0, id=-1):
         super().__init__(Parameter)
         self.id=int(id)  # id used for output
         self.Z=Container(0)
@@ -46,6 +46,13 @@ class Model(Collection):
             self.set_vals(vals)
         if tofits!=None:
             self.set_tofits(tofits)
+
+    # copy
+    def copy(self):
+        newobj=super().copy()
+        newobj.id=-1
+        newobj.Z=self.Z.copy()
+        return newobj
 
     # basic methods
     def _get_param(self, key):

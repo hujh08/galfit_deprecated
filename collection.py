@@ -42,6 +42,14 @@ class Collection:
                                      *self.valid_values.get(k, []),
                                      fmt=fmt)
 
+    # copy
+    def copy(self):
+        newobj=self.__class__()
+        for k, p in self.params.items():
+            newobj.params[k]=p.copy()
+        return newobj
+
+    # handle parameter
     def _get_param(self, key):
         if key in self.alias_keys:
             key=self.alias_keys[key]

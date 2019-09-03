@@ -36,6 +36,13 @@ class Scalar:
 
             self.strf=fmt
 
+    # copy
+    def copy(self):
+        newobj=self.__class__(self.val)
+        newobj.typef=self.typef
+        newobj.strf=self.strf
+        return newobj
+
     def get(self):
         return self.val
 
@@ -57,11 +64,17 @@ class Enum(Scalar):
     '''
     like enum in scalar with infinite valid value
     '''
-    def __init__(self, val, valid, alias={}, fmt=None):
-        Scalar.__init__(self, val, fmt)
+    def __init__(self, val, valid={}, alias={}, fmt=None):
+        super().__init__(val, fmt)
 
         self.valid=valid
         self.alias=alias
+
+    def copy(self):
+        newobj=super().copy()
+        newobj.valid=self.valid.copy()
+        newobj.alias=self.alias.copy()
+        return newobj
 
     def set(self, val):
         if val in self.alias:
@@ -75,7 +88,7 @@ class Enum(Scalar):
 class Vector(Scalar):
     def __init__(self, val, fmt=None):
         val=list(val)
-        Scalar.__init__(self, val[0], fmt)
+        super().__init__(val[0], fmt)
 
         self.val=val
         self.vlen=len(self.val)
