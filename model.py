@@ -79,7 +79,7 @@ class Model(Collection):
         '''
         number of fixed parameters
         '''
-        return sum([self._get_param(p).is_fixed() for p in self.valid_keys])
+        return sum([self._get_param(p).is_frozen() for p in self.valid_keys])
 
     def get_num_of_free_params(self):
         '''
@@ -95,6 +95,21 @@ class Model(Collection):
         for k in vals:
             getattr(self._get_param(k), 'set_'+field)(vals[k])
 
+    ## free/freeze all parameters
+    def set_all_params_fit(self, tofit):
+        '''
+        set all parameters free to fit if `tofit` is True
+        '''
+        for p in self:
+            p.set_par_fit(tofit)
+
+    def free_all(self):
+        self.set_all_params_fit(True)
+
+    def freeze_all(self):
+        self.set_all_params_fit(False)
+
+    # visulization
     def get_xy_string(self):
         x0s=self._get_param('x0')._str_fields()
         y0s=self._get_param('y0')._str_fields()
@@ -162,6 +177,11 @@ class Model(Collection):
         if not self.is_sky() and prop=='xy':
             return self.get_xy()
 
+        # return Parameter type
+        if prop in keys_set(self.alias_keys, 'par_'):
+            return self._get_param(prop[4:])
+
+        # return value of parameter
         if prop in self.alias_keys or prop.lower()=='z':
             return super().__getattr__(prop)
 

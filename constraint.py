@@ -209,7 +209,7 @@ class Constraint:
         '''
         any parameter limited by this constraint is fixed
         '''
-        return any(self._get_is_fixed_params())
+        return any(self._get_is_frozen_params())
 
     def is_soft(self):
         return self.cons_type[:4]=='soft'
@@ -224,9 +224,9 @@ class Constraint:
         else:
             return param
 
-    def _get_is_fixed_params(self):
+    def _get_is_frozen_params(self):
         param=self.param_mod
-        return [mod.get_param(param).is_fixed() for mod in self.comps]
+        return [mod.get_param(param).is_frozen() for mod in self.comps]
 
     def get_num_of_hard_free_params(self):
         '''
@@ -235,7 +235,7 @@ class Constraint:
         e.g. if n parameters are linked by offfset/ratio, n-1 ndof will be deleted
         '''
         if self.is_hard():
-            fixeds=self._get_is_fixed_params()
+            fixeds=self._get_is_frozen_params()
 
             num_tot=len(fixeds)
             num_fix=sum(fixeds)

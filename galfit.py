@@ -3,6 +3,7 @@
 '''
 class to hold parameters to run galfit
 '''
+import os
 
 from functools import partial
 
@@ -42,6 +43,8 @@ class GalFit:
             self.logname=ospath.basename(filename) # name in fitlog
 
             self._load_file(filename)
+        else:
+            self.gfpath=os.getcwd()
 
         if loadall or loadlog:
             fitlog=self.get_abs_fname('fit.log')
@@ -392,9 +395,10 @@ class GalFit:
         return num_tot-num_fixed-num_hard
 
     ## add/remove component
-    def add_comp(self, mod, vals=None, tofits=None, Z=0, index=0):
+    def add_comp(self, mod, vals=None, tofits=None, Z=0, index=None):
         '''
         add component before index
+            if index is None, append it to comps
         '''
         if isinstance(mod, Model):
             modnew=mod
@@ -407,7 +411,10 @@ class GalFit:
         else:
             raise TypeError('unsupported model type: %s' % type(mod))
 
-        self.comps.insert(index, modnew)
+        if index is None:
+            self.comps.append(modnew)
+        else:
+            self.comps.insert(index, modnew)
 
     def del_comp(self, index=0):
         '''
@@ -423,6 +430,20 @@ class GalFit:
     def add_sky(self, *args, **keys):
         from .model import Sky
         self.add_comp(Sky, *args, **keys)
+
+    ## free/freeze all parameters
+    def set_all_comps_fit(self, tofit):
+        '''
+        set all components free to fit if `tofit` is True
+        '''
+        for c in self:
+            c.set_all_params_fit(tofit)
+
+    def free_all(self):
+        self.set_all_comps_fit(True)
+
+    def freeze_all(self):
+        self.set_all_comps_fit(False)
 
     # output
     def _reset_comps_id(self, start=1):

@@ -51,15 +51,21 @@ class Parameter(Collection):
 
     # Property `tofit`
     ## determine function
-    def is_fixed(self):
+    def is_frozen(self):
         return self.tofit==0
         
-    ## change field
-    def free(self):
-        self.tofit.set(1)
+    ## change tofit state
+    def set_par_fit(self, tofit):
+        '''
+        set parameter free to fit if `tofit` is True
+        '''
+        self.set_tofit(int(bool(tofit)))
 
-    def frozen(self):
-        self.tofit.set(0)
+    def free(self):
+        self.set_par_fit(True)
+
+    def freeze(self):
+        self.set_par_fit(False)
 
     # magic methods
     def __getattr__(self, prop):

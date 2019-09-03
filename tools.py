@@ -47,7 +47,7 @@ def rungf(init, change=None):
 
         fno+=1
         fname=gfname(fno)
-        gf.write(fname)
+        gf.writeto(fname)
 
     fno_r=fno+1
     fname_r=gfname(fno_r)
