@@ -227,7 +227,33 @@ class Sersic(Model):
         '10': 'Position angle [deg: Up=0, Left=90]',
     }
 
-    # convert to other model
+    # handle parameters
+    def scale_re(self, scale):
+        # scale effective radius
+        self.re*=scale
+
+    def change_shape_to(self, ba_dst, degree=0.5):
+        '''
+        change the shape, i.e. b/a looks more like `ba_dst` in `degree`
+
+        0<=degree, ba_dst<=1
+        if degree == 0, shape would not change
+        '''
+        if not (0<=ba_dst<=1 and 0<=degree<=1):
+            raise Exception('only support 0~1 ba_dst and degree')
+        self.ba=degree*ba_dst+(1-degree)*self.ba
+
+    def rounder_shape(self, degree=0.5):
+        # make the shape rounder, i.e. b/a is nearer to 1
+        self.change_shape_to(1, degree)
+
+    def flatter_shape(self, degree=0.5):
+        # make the shape flatter, i.e. b/a is nearer to 0
+        self.change_shape_to(0, degree)
+
+    def set_exp_sersic(self):
+        # set exponential sersic
+        self.n=1
 
 class Expdisk(Model):
     '''
