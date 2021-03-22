@@ -498,23 +498,24 @@ class GalFit:
 
         return '\n'.join(lines)
 
-    def writeto(self, dest='.', overwrite=True):
+    def writeto(self, dest='.', overwrite=True, **kwargs):
         '''
         dest: file or directory
         '''
         if ospath.isdir(dest):
-            return self.writeto_dir(dest, overwrite)
+            return self.writeto_dir(dest, overwrite, **kwargs)
         else:
-            return self.writeto_file(dest, overwrite)
+            return self.writeto_file(dest, overwrite, **kwargs)
 
-    def writeto_file(self, filename, overwrite=True):
+    def writeto_file(self, filename, overwrite=True, chdir=False):
         '''write to a file'''
         if type(filename)==int:
             filename=gfname(filename)
 
-        wrpath=abs_dirname(filename)
-        if wrpath!=self.gfpath:
-            self.head.chdir(self.gfpath, wrpath)
+        if chdir:
+            wrpath=abs_dirname(filename)
+            if wrpath!=self.gfpath:
+                self.head.chdir(self.gfpath, wrpath)
 
         with open(filename, 'w') as f:
             f.write(self._str()+'\n')
@@ -523,15 +524,16 @@ class GalFit:
             self.gfcons.write(self.get_abs_hdp('cons'))
 
         # resume path of head
-        if wrpath!=self.gfpath:
-            self.head.chdir(wrpath, self.gfpath)
+        if chdir:
+            if wrpath!=self.gfpath:
+                self.head.chdir(wrpath, self.gfpath)
 
         return filename
 
-    def writeto_dir(self, diranme, overwrite=True):
+    def writeto_dir(self, diranme, overwrite=True, **kwargs):
         '''write at a directory'''
         fname=abs_join(diranme, self.logname)
-        self.writeto_file(fname, overwrite)
+        self.writeto_file(fname, overwrite, **kwargs)
         return fname
 
     # magic methods

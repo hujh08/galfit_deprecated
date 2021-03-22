@@ -47,6 +47,9 @@ def rungf(init, change=None):
 
         fno+=1
         fname=gfname(fno)
+        while os.path.isfile(fname):
+            fno+=1
+            fname=gfname(fno)
         gf.writeto(fname)
 
     fno_r=fno+1
