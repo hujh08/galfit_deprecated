@@ -56,6 +56,7 @@ class GalFit:
 
     # construct from file
     def _load_file(self, filename):
+        modid=1   # model id
         blk=self.head   # current block
         with open(filename) as f:
             for line in f:
@@ -74,8 +75,9 @@ class GalFit:
                 key=key[:-1]
                 if key=='0':
                     mdname=vals[0]
-                    blk=Model.get_model(mdname)()
+                    blk=Model.get_model(mdname)(id=modid)
                     self.comps.append(blk)
+                    modid+=1
 
                 if key in blk.valid_keys:
                     blk._feed_key_fields(key, vals)
