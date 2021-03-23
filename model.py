@@ -116,6 +116,15 @@ class Model(Collection):
     def freeze_all(self):
         self.set_all_params_fit(False)
 
+    ## free/freeze part of parameters
+    def free_pars(self, pars):
+        for p in pars:
+            getattr(self, 'par_'+p).free()
+
+    def freeze_pars(self, pars):
+        for p in pars:
+            getattr(self, 'par_'+p).freeze()
+
     # visulization
     def get_xy_string(self):
         x0s=self._get_param('x0')._str_fields()
