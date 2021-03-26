@@ -145,6 +145,22 @@ class Model(GFSlotsDict):
         '''
         return Model.get_all_models()[name.lower()]
 
+    @staticmethod
+    def is_gf_model_instance(obj):
+        '''
+            whether `obj` is an instance of galfit model
+                but it could not be the instance of Model
+        '''
+        return isinstance(obj, Model) and type(obj) is not Model
+
+    @staticmethod
+    def is_gf_model_class(cls):
+        '''
+            whether `obj` is a class for galfit model
+                but it could not be Model
+        '''
+        return issubclass(cls, Model) and cls is not Model
+
     # reload prop setter
 
     # stringlizing
@@ -345,6 +361,14 @@ class Sersic(Model):
             warnings.warn('irreversible transform from Sersic to Devauc')
 
         m=Devauc()
+        m.Z=self.Z
+
+        # keys
+        keys=m.get_all_fitpars()
+        vals=self.get_fitpars(keys)
+        m.set_fitpars_val(vals)
+
+        return m
 
 class Sky(Model):
     '''

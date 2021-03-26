@@ -335,6 +335,21 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         '''
         self.__dict__['pars']={}
 
+    # copy
+    def copy(self):
+        '''
+            copy an instance
+        '''
+        obj=type(self)()
+
+        for k in obj.keys_valid:
+            if not self.is_set_key(k):
+                continue
+
+            obj.set_prop(k, self.get_val(k))
+
+        return obj
+
     # `in` method
     def __contains__(self, prop):
         '''

@@ -153,6 +153,70 @@ class GalFit:
         '''
         self.set_fit_state('freeze', comps)
 
+    ## add/remove/duplicate model
+    def add_comp(self, mod, vals=None, index=None, keys=None, Z=None):
+        '''
+            add a component in `comps` before index `index`
+                if `index` is None, insert in the end
+
+            Parameter:
+                mod: instance of galfit Model, model class, or str
+                    if the latter two,
+                        use :param vals, keys, Z to create an instance
+        '''
+        if not Model.is_gf_model_instance(mod):
+            if is_str_type(mod):
+                mod=Model.get_model_class(mod)
+            elif not Model.is_gf_model_class(mod):
+                raise Exception('only accept galfit model instance/class or str as mod, '
+                                'but got '+type(mod).__name__)
+            mod=mod()
+            if vals is not None:
+                mod.set_fitpars_val(vals, keys=keys)
+
+            if Z is not None:
+                mod.Z=Z
+
+        # insert
+        if index is None:
+            index=len(self.comps)
+        self.comps.insert(index, mod)
+
+    def del_comp(self, index):
+        '''
+            delete comp
+        '''
+        del self.comps[index]
+
+    def dup_comp(self, index, index_dup=None):
+        '''
+            duplicate component 
+                and then insert just after it by default
+                    or other index, given by `index_dup`
+        '''
+        comp=self.comps[index].copy()
+
+        if index_dup is None:
+            if index==-1:
+                index_dup=len(self.comps)
+            else:
+                index_dup=index+1
+
+        self.comps.insert(index_dup, comp)
+
+    ### add particular model
+    def add_sersic(self, *args, **kwargs):
+        '''
+            add sersic model
+        '''
+        self.add_comp('sersic', *args, **kwargs)
+
+    def add_sky(self, *args, **kwargs):
+        '''
+            add sky model
+        '''
+        self.add_comp('sky', *args, **kwargs)
+
     # Functions to image
     def imcopy_to(self, fitsname):
         '''
@@ -163,20 +227,6 @@ class GalFit:
     def imedit_to(self, fitsname):
         '''
             work like IRAF task imedit, but to input image
-        '''
-        pass
-
-
-    # Functions of model
-    def insert_model(self, mod, i):
-        '''
-            insert a model before current `i`th model
-        '''
-        pass
-
-    def duplicate_model(self, i):
-        '''
-            duplicate the `i`th model in-place
         '''
         pass
 
