@@ -363,6 +363,42 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
 
         return key
 
+    ## type of key
+    def is_valid_key(self, key):
+        '''
+            whether a valid key
+        '''
+        key=self.get_std_key(key)
+        return key in self.keys_valid
+
+    def is_opt_key(self, key):
+        '''
+            whether an optional key
+            
+            an optional key must be valid
+        '''
+        key=self.get_std_key(key)
+        return self.is_valid_key(key) and key in self.keys_optional
+
+    def is_set_key(self, key):
+        '''
+            whether a key is set explicitly
+        '''
+        key=self.get_std_key(key)
+        return key in self.pars
+
+    ### for unset optional keys
+    def touch_opt_key(self, key):
+        '''
+            touch an optional key,
+                if it is not in `self.pars`, put it
+        '''
+        if self.is_set_key(key) or not self.is_opt_key(key):
+            # do nothing to set or non-optional keys
+            return
+
+        SlotsDict.set_prop(self, key, self.get_val(key))
+
     ## optional/required keys
     def keys_split_req_opt(self):
         '''
@@ -381,7 +417,6 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
                 reqs.append(k)
 
         return reqs, opts
-
 
     # fundamental methods to get/set attribution
     def get_val(self, prop):

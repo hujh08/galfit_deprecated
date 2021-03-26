@@ -146,14 +146,6 @@ class Model(GFSlotsDict):
         return Model.get_all_models()[name.lower()]
 
     # reload prop setter
-    def set_prop(self, prop, val):
-        if not self.is_sky() and prop=='1' and is_str_type(val):
-            val=val.split()
-            if len(val)==4:
-                super().set_prop('1', val[::2])
-                super().set_prop('2', val[1::2])
-                return
-        super().set_prop(prop, val)
 
     # stringlizing
     def line_for_print_model_name(self):
@@ -187,31 +179,103 @@ class Model(GFSlotsDict):
         return super().strprint_of_val_key(key)
 
     # fitting parameters
-    def get_vals_fitpars(self):
+    def get_all_fitpars(self):
         '''
-            return values of all fitting parameters
-                with the order in `keys_sorted`
+            return a list of key, each for a fitting parameter
         '''
-        vals=[]
-        for k in self.keys_sorted[1:-1]:
-            vals.append(self.get_val(k).val)
+        keys=[]
+        for k in self.keys_sorted:
+            if self.is_fitpar_key(k):
+                keys.append(k)
+        return keys
 
-        return vals
-
-    def set_vals_fitpars(self, vals):
+    def is_fitpar_key(self, key):
         '''
-            set all fiting parameters from pars
-
-            pars must be list of numbers
+            determine whether a key is a fitting parameter
         '''
-        keys=self.keys_sorted[1:-1]
-        assert len(vals)==len(keys)
+        key=self.get_std_key(key)
+        return self.is_valid_key(key) and key not in '0Z'
 
-        for k, v in zip(keys, vals):
-            if k not in self.pars:
-                self.set_prop(k, v)
-            else:
-                self.pars[k].set_val(v)
+    def is_xypar_key(self, key):
+        '''
+            if key is '1' (not alias x0), it might mean setting to both xy
+        '''
+        return (not self.is_sky()) and key=='1'
+
+    ## set methods
+    def set_fitpar(self, key, val):
+        '''
+            set a fitting parameter
+
+            there is special key, '1' to set both xy
+        '''
+        assert self.is_fitpar_key(key)
+
+        # for xy parameters
+        if self.is_xypar_key(key) and is_str_type(val):
+            val=val.split()
+            if len(val)==4:
+                self.set_fitpar('1', val[::2])
+                self.set_fitpar('2', val[1::2])
+                return
+
+        if not self.is_set_key(key):
+            if not self.is_opt_key(key):
+                return super().set_prop(key, val)
+            self.touch_opt_key(key)
+
+        self.get_val(key).update(val)
+
+    def update_fitpar(self, key, **kwargs):
+        '''
+            update state (value, state, uncertainty)
+                of a fitting parameter
+        '''
+        assert self.is_fitpar_key(key)
+
+        if not self.is_set_key(key):
+            if not self.is_opt_key(key):
+                raise Exception('cannot update missing required parameter: '
+                                +self.get_key_name(key))
+            self.touch_opt_key(key)
+        self.get_val(key).update(**kwargs)
+
+    ### reload `set_prop` to handle fitting parameters
+    def set_prop(self, key, val):
+        '''
+            reload `set_prop` for fitting parameters
+        '''
+        if self.is_fitpar_key(key):
+            return self.set_fitpar(key, val)
+        super().set_prop(key, val)
+
+    ## free/freeze fitting parameters
+    def set_fit_state(self, state, pars=None):
+        '''
+            set fit state (free/freeze to fit) for fitting parameters
+
+            if `pars` is None, do to all fitting parameters
+
+            `state` could be int or str
+                for str, it could be str of int, or 'free'/'freeze'
+        '''
+        if pars is None:
+            pars=self.get_all_fitpars()
+
+        for k in pars:
+            self.update_fitpar(k, state=state)
+
+    def free(self, pars=None):
+        '''
+            free part/all fitting parameters
+        '''
+        self.set_fit_state('free', pars)
+
+    def freeze(self, pars=None):
+        '''
+            free part/all fitting parameters
+        '''
+        self.set_fit_state('freeze', pars)
 
 ## frequently used models
 class Sersic(Model):

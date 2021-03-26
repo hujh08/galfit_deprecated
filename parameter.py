@@ -5,7 +5,7 @@
         with property val, state, uncertainty (optional)
 '''
 
-from collection import is_str_type, is_int_type, is_number_type
+from collection import is_str_type, is_int_type, is_vec_type
 
 class Parameter:
     '''
@@ -18,6 +18,11 @@ class Parameter:
             uncert: uncertainty of fitting result
                 optional
     '''
+    FREE=1
+    FREEZE=0
+
+    map_vals={'free': FREE, 'freeze': FREEZE}
+
     def __init__(self, *args):
         '''
             initiation of parameter
@@ -31,55 +36,106 @@ class Parameter:
                 3-args: val, state, uncertainty
                     uncertainty: optional, None, str, or numbers
         '''
-        if len(args)==1:
-            v=args[0]
-            if is_str_type(v):
-                return self.__init__(*v.split())
+        # set default state, uncert
+        self.set_state()
+        self.set_uncert()
 
-            if not is_number_type(v):
-                return self.__init__(*v)
+        # parse args
+        assert args  # at least one argument
+        self.update(*args)
 
-            self.__init__(v, 0)
-
-        elif len(args)>3:
-            raise Exception('only allow 1-3 arguments, got %i' % (len(args)))
-        else:
-            self.set_val(args[0])
-            self.set_state(args[1])
-
-            if len(args)>2:
-                self.set_uncert(args[2])
-
-    # methods to set properties: val, state, uncert
+    # basic methods to set: val, state, uncert
     def set_val(self, v):
         '''
             set property `val`
         '''
-        self.val=float(v)
+        self.__dict__['val']=float(v)
 
-    def set_state(self, v):
+    def set_state(self, v=0):
         '''
             set property `val`
 
             only allow int, str
+                for str, it could be str of int, or a key to a value
         '''
         assert is_int_type(v) or is_str_type(v)
-        self.state=int(v)
+        
+        if is_str_type(v):
+            if v in self.map_vals:
+                v=self.map_vals[v]
+            else:
+                v=int(v)
 
-    def set_uncert(self, v):
+        self.__dict__['state']=int(v)
+
+    def set_uncert(self, v=None):
         '''
             set property `uncert`
+
+            None or float
         '''
-        self.uncert=float(v)
+        if v is not None:
+            v=float(v)
+        self.__dict__['uncert']=v
+
+    ## frequently used
+    def free(self):
+        self.set_state(self.FREE)
+
+    def freeze(self):
+        self.set_state(self.FREEZE)
+
+    ## flexible update
+    def update(self, *args, **kwargs):
+        '''
+            flexible way to update
+
+            like:
+                update(val, [state, [uncert]])
+                # update({val=..., state=..., ...}) # deprecated
+                update(val=..., state=..., ...)
+        '''
+        if len(args)==1:
+            v=args[0]
+            if is_str_type(v):
+                args=v.split()
+                if len(args)!=1: # maybe empty string
+                    return self.update(*args, **kwargs)
+            elif isinstance(v, type(self)):
+                return self.update(v.val, v.state, v.uncert, **kwargs)
+            elif is_vec_type(v):
+                return self.update(*v, **kwargs)
+            # elif isinstance(v, dict):
+            #     return self.update(**v, **kwargs)
+        elif len(args)>3:
+            raise Exception('only allow 0-3 arguments, got %i' % (len(args)))
+
+        if args:
+            keys=['val', 'state', 'uncert']  # order for args
+            for k, v  in zip(keys, args):
+                if k in kwargs:
+                    raise Exception('conflict arguments for '+k)
+                kwargs[k]=v
+
+        # update kwargs
+        for k, v in kwargs.items():
+            setattr(self, k, v)
 
     ## intercept other setting
     def __setattr__(self, prop, val):
         props_valid={'val', 'state', 'uncert'}
         if prop not in props_valid:
-            raise Exception('only allow properties: %s' % str(props_valid))
+            raise Exception('only allow properties: %s, but got \'%s\''
+                                % (str(props_valid), prop))
 
-        super().__setattr__(prop, val)
+        getattr(self, 'set_'+prop)(val)
 
+    ## copy
+    def copy(self):
+        '''
+            copy as a new instance
+        '''
+        return type(self)(self)
 
     # stringlizing
     def str_val(self):
@@ -103,7 +159,7 @@ class Parameter:
             developer-friendly
         '''
         ss='%g, %i' % (self.val, self.state)
-        if hasattr(self, 'uncert'):
+        if self.uncert is not None:
             ss+=', %g' % self.uncert
 
         name=self.__class__.__name__

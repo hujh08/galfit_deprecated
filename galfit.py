@@ -125,6 +125,34 @@ class GalFit:
         with open(fname, 'w') as f:
             f.write(str(self))
 
+    # functions to model
+    ## fitting parameter
+    def set_fit_state(self, state, comps=None):
+        '''
+            free/freeze fitting parameters to all/part components
+
+            :param comps: None, or list of int
+        '''
+        if comps is None:
+            comps=self.comps
+        else:
+            comps=[self.comps[i] for i in comps]
+
+        for comp in comps:
+            comp.set_fit_state(state)
+
+    def free(self, comps=None):
+        '''
+            free all fitting parameters to all/part components
+        '''
+        self.set_fit_state('free', comps)
+
+    def freeze(self, comps=None):
+        '''
+            freeze all fitting parameters to all/part components
+        '''
+        self.set_fit_state('freeze', comps)
+
     # Functions to image
     def imcopy_to(self, fitsname):
         '''
