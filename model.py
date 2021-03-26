@@ -14,7 +14,7 @@
 
 import warnings
 
-from collection import GFSlotsDict, is_str_type
+from collection import GFSlotsDict, is_str_type, is_vec_type
 from parameter import Parameter
 
 class Model(GFSlotsDict):
@@ -203,7 +203,7 @@ class Model(GFSlotsDict):
         return (not self.is_sky()) and key=='1'
 
     ## set methods
-    def set_fitpar(self, key, val):
+    def set_fitpar_val(self, key, val):
         '''
             set a fitting parameter
 
@@ -215,8 +215,8 @@ class Model(GFSlotsDict):
         if self.is_xypar_key(key) and is_str_type(val):
             val=val.split()
             if len(val)==4:
-                self.set_fitpar('1', val[::2])
-                self.set_fitpar('2', val[1::2])
+                self.set_fitpar_val('1', val[::2])
+                self.set_fitpar_val('2', val[1::2])
                 return
 
         if not self.is_set_key(key):
@@ -240,13 +240,62 @@ class Model(GFSlotsDict):
             self.touch_opt_key(key)
         self.get_val(key).update(**kwargs)
 
+    ## batch set of values
+    def set_fitpars_val(self, vals, keys=None):
+        '''
+            batch set to fitting parameters' value
+
+            :param vals: dict, vector
+                if dict: it is {key: val}
+                if vector: use :param keys
+                    if keys is None, use all fitting parameters
+        '''
+        if is_vec_type(vals):
+            if keys is None:
+                keys=self.get_all_fitpars()
+            assert len(keys)==len(vals)
+            vals=dict(zip(keys, vals))
+        elif not isinstance(vals, dict):
+            raise Exception('only support vector or dict for vals, but got '
+                            +type(vals).__name__)
+
+        for k, v in vals.items():
+            self.set_fitpar_val(k, v)
+
+    def get_fitpars(self, keys=None, fetch_val=False, return_dict=False):
+        '''
+            return list of  fitting parameters
+
+            if not `fetch_val`, return list of objects for parameters
+                otherwise, only fetch its value
+
+            `return_dict`: return list or vector
+        '''
+        if keys is None:
+            keys=self.get_all_fitpars()
+
+        pars=[]
+        for k in keys:
+            assert self.is_fitpar_key(k)
+            
+            v=self.get_val(k)
+            if fetch_val:
+                v=v.val
+
+            pars.append(v)
+
+        if return_dict:
+            pars=dict(zip(keys, pars))
+
+        return pars
+
     ### reload `set_prop` to handle fitting parameters
     def set_prop(self, key, val):
         '''
             reload `set_prop` for fitting parameters
         '''
         if self.is_fitpar_key(key):
-            return self.set_fitpar(key, val)
+            return self.set_fitpar_val(key, val)
         super().set_prop(key, val)
 
     ## free/freeze fitting parameters

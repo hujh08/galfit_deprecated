@@ -399,24 +399,25 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
 
         SlotsDict.set_prop(self, key, self.get_val(key))
 
-    ## optional/required keys
-    def keys_split_req_opt(self):
-        '''
-            split keys to required and optional keys
-                with the order in `keys_sorted`
+    # useless, deprecate
+    # ## optional/required keys
+    # def keys_split_req_opt(self):
+    #     '''
+    #         split keys to required and optional keys
+    #             with the order in `keys_sorted`
 
-            return reqs, opts
-        '''
-        reqs=[]
-        opts=[]
+    #         return reqs, opts
+    #     '''
+    #     reqs=[]
+    #     opts=[]
 
-        for k in self.keys_sorted:
-            if k in self.keys_optional:
-                opts.append(k)
-            else:
-                reqs.append(k)
+    #     for k in self.keys_sorted:
+    #         if k in self.keys_optional:
+    #             opts.append(k)
+    #         else:
+    #             reqs.append(k)
 
-        return reqs, opts
+    #     return reqs, opts
 
     # fundamental methods to get/set attribution
     def get_val(self, prop):
