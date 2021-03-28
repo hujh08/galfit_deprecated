@@ -229,9 +229,3 @@ class GalFit:
             work like IRAF task imedit, but to input image
         '''
         pass
-
-    '''
-        constraint:
-        treat constraint file as independent, just as other, like mask, sigma files
-        not trace it in class, just writting to file immediately whenover change happens
-    '''
