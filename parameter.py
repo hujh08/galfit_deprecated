@@ -5,7 +5,7 @@
         with property val, state, uncertainty (optional)
 '''
 
-from collection import is_str_type, is_int_type, is_vec_type
+from collection import is_str_type, is_int_type, is_vec_type, is_number_type
 
 class Parameter:
     '''
@@ -22,6 +22,8 @@ class Parameter:
     FREEZE=0
 
     map_vals={'free': FREE, 'freeze': FREEZE}
+
+    # __slots__=['val', 'state', 'uncert']  # allocate a static amount of memory
 
     def __init__(self, *args):
         '''
@@ -164,3 +166,48 @@ class Parameter:
 
         name=self.__class__.__name__
         return '%s(%s)' % (name, ss)
+
+    # reload numerical operator
+    def _gen_inplace_op(self, v, f):
+        '''
+            general method for inplace operation
+
+            Parameter:
+                v: str, number, instance of Parameter
+
+                    for instance of Parameter, only use the prop `val`
+
+                f: callable
+                    accept `self.val` and v as arguments
+                    and return a value back set to `self.val`
+        '''
+        assert is_number_type(v) or is_str_type(v) or isinstance(v, type(self))
+
+        # convert to Parameter instance for str
+        if is_str_type(v):
+            return self.__iadd__(type(self)(v))
+
+        # only use the val for Parameter instance
+        if isinstance(v, type(self)):
+            v=v.val
+
+        self.set_val(f(self.val, v))
+
+        return self
+
+    def __iadd__(self, v):
+        '''
+            inplace add
+
+            see `_gen_inplace_op` for detail
+        '''
+        self._gen_inplace_op(v, lambda x, y: x+y)
+
+    def __imul__(self, v):
+        '''
+            inplace multiply
+
+            arguments and treatment to Parameter instance
+                same as `__iadd`
+        '''
+        self._gen_inplace_op(v, lambda x, y: x*y)

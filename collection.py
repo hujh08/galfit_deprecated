@@ -281,7 +281,7 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
                 map_values_alias: from values_alias
 
             addtional treatment to
-                values_default: some values would be copied from `values_examples`
+                values_default: some values would be copied from `values_example`
         '''
         # initiation required props
         props_req=['keys_sorted', 'keys_alias', 'values_example']
@@ -358,23 +358,31 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         return self.get_std_key(prop) in self.keys_valid
 
     # functions to handle keys
-    def get_std_key(self, prop):
+    @classmethod
+    def get_std_key(cls, prop):
         '''
             get a standard key for a given `prop`
 
             mainly translate the alias
+
+            implemented as a classmehod,
+                considering the alias is not allowed to be changed
         '''
-        if prop in self.map_keys_alias:
-            prop=self.map_keys_alias[prop]
+        if prop in cls.map_keys_alias:
+            prop=cls.map_keys_alias[prop]
 
         return prop
 
-    def get_key_name(self, key):
+    @classmethod
+    def get_key_name(cls, key):
         '''
             return a user-friendly name for a key
+
+            implemented as a classmehod,
+                considering the key name is not allowed to be changed
         '''
-        if key in self.keys_name:
-            return self.keys_name[key]
+        if key in cls.keys_name:
+            return cls.keys_name[key]
 
         return key
 
@@ -412,7 +420,7 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
             # do nothing to set or non-optional keys
             return
 
-        SlotsDict.set_prop(self, key, self.get_val(key))
+        SlotsDict.set_prop(self, key, self.get_default_val(key))
 
     # useless, deprecate
     # ## optional/required keys
@@ -435,9 +443,29 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
     #     return reqs, opts
 
     # fundamental methods to get/set attribution
+    def get_default_val(self, prop):
+        '''
+            fetch default value
+        '''
+        prop=self.get_std_key(prop)
+        assert self.is_opt_key(prop)
+
+        if prop not in self.values_default:
+            raise Exception('no default value for prop: '
+                                +self.get_key_name(prop))
+        return self.values_default[prop]
+
     def get_val(self, prop):
         '''
             only accessible for valid keys
+
+            for optional key and mutable value,
+                to aviod possible changing, val would be fetched and put into pars
+            determine of mutation of prop and val is by classmethod `is_mutable_prop`
+                which accept prop as argument
+                    and could be reloaded for particular subclass
+            implement here is based on attribution in the corresponding value in examples
+                like whether having `__iadd__`, `__imul__`
         '''
         prop=self.get_std_key(prop)
         if prop not in self.keys_valid:
@@ -446,12 +474,12 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         if prop not in self.pars:
             # if not set, use value in values_default
             if prop in self.keys_optional:
-                if prop not in self.values_default:
-                    raise Exception('no default value for optional prop: '
-                                            +self.get_key_name(prop))
-                return self.values_default[prop]
-
-            raise Exception('unset parameter: '+self.get_key_name(prop))
+                if self.is_mutable_prop(prop):
+                    self.touch_opt_key(prop)
+                else:
+                    return self.get_default_val(prop)
+            else:
+                raise Exception('unset parameter: '+self.get_key_name(prop))
 
         return self.pars[prop]
 
@@ -479,6 +507,32 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
                 raise Exception('unexpected value for par \'%s\'. Only accept %s'
                                     % (name, str(values_valid)))
         self.pars[prop]=val
+
+    ## auxiliary functions: mutation determine
+    @classmethod
+    def is_mutable_prop(cls, prop):
+        '''
+            determine whether the val of a key is mutable
+
+            The implement here would fetch the example value
+                and find whether it contains some special method
+                    like `__iadd`, `__imul__`
+            if not existed example, return False
+        '''
+        prop=cls.get_std_key(prop)
+        if prop not in cls.values_example:
+            return False
+        return cls.is_mutable_val(cls.values_example[prop])
+
+    @staticmethod
+    def is_mutable_val(v):
+        '''
+            determine whether a val is mutable
+
+            the basic idea is to find whether it contains some special method
+                    like `__iadd`, `__imul__`
+        '''
+        return hasattr(v, '__iadd__') or hasattr(v, '__imul__')
 
     ## magic methods
     ### getattr/setattr
