@@ -279,6 +279,7 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
                 map_keys_alias: from keys_alias
                 values_funcs_type: from values_example
                 map_values_alias: from values_alias
+                keys_optional: from keys_required if not existed
 
             addtional treatment to
                 values_default: some values would be copied from `values_example`
@@ -311,6 +312,10 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         if 'values_alias' in cls.__dict__:
             cls.map_values_alias={k: inverse_alias(s)
                                     for k, s in cls.values_alias.items()}
+
+        # keys_optional from keys_required
+        if 'keys_required' in cls.__dict__ and 'keys_optional' not in cls.__dict__:
+            cls.keys_optional=cls.keys_valid.difference(cls.keys_required)
 
         # values_default: copy some values from values_example
         if 'values_example' in cls.__dict__:
@@ -520,6 +525,26 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
                 raise Exception('unexpected value for par \'%s\'. Only accept %s'
                                     % (name, str(values_valid)))
         self.pars[prop]=val
+
+    ## set from dict/pair
+    def set_prop_from_vals(self, *args):
+        '''
+            support 1 or 2 arguments
+                if 1:
+                    set from dict or list of pair of (key, val)
+                if 2:
+                    2 args are vals, keys
+        '''
+        if len(args)==2:
+            vals, keys=args
+            vals=dict(zip(keys, vals))
+        elif len(args)==1:
+            vals=dict(args[0])
+        else:
+            raise Exception('only allow 1 or 2 args, but got %i' % len(args))
+
+        for k, v in vals.items():
+            self.set_prop(k, v)
 
     ## auxiliary functions: mutation determine
     @classmethod

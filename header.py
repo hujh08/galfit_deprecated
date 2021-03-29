@@ -72,19 +72,21 @@ class Header(GFSlotsDict):
     # values_example
     values_example=dict(
         A='none',
-        B='none',
+        B='none',        # must give explicitly
         C='none',
         D='none',
-        E=1,   # can only be an integer, see readme of galfit
+        E=1,             # can only be an integer, see readme of galfit
         F='none',
         G='none',
         H=[0, 0, 0, 0],  # must give explicitly
         I=[0, 0],        # must give explicitly
         J=20.,
-        K=[1.0, 1.0],    # required for King and the Nuker profiles
+        K=[1.0, 1.0],    # required for some profiles, but only a shift of mag, like J
         O='regular',
         P='0',
     )
+    keys_required=set('BHI')
+    # keys_optional=set(keys_sorted).difference()
 
     ## parameter 'P': mode parameter
     ## 0=optimize, 1=model, 2=imgblock, 3=subcomps
