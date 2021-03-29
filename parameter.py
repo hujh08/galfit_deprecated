@@ -123,6 +123,21 @@ class Parameter:
         for k, v in kwargs.items():
             setattr(self, k, v)
 
+    ## state operation
+    @classmethod
+    def state_of_comb_pars(cls, p0, p1):
+        '''
+            state of a parameter by combing two pars
+
+            `p0`, `p1` could be instance, or state
+        '''
+        if isinstance(p0, cls):
+            p0=p0.state
+        if isinstance(p1, cls):
+            p1=p1.state
+
+        return int(bool(p0+p1))
+
     ## intercept other setting
     def __setattr__(self, prop, val):
         props_valid={'val', 'state', 'uncert'}
@@ -201,7 +216,7 @@ class Parameter:
 
             see `_gen_inplace_op` for detail
         '''
-        self._gen_inplace_op(v, lambda x, y: x+y)
+        return self._gen_inplace_op(v, lambda x, y: x+y)
 
     def __imul__(self, v):
         '''
@@ -210,4 +225,4 @@ class Parameter:
             arguments and treatment to Parameter instance
                 same as `__iadd`
         '''
-        self._gen_inplace_op(v, lambda x, y: x*y)
+        return self._gen_inplace_op(v, lambda x, y: x*y)

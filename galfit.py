@@ -217,6 +217,22 @@ class GalFit:
         '''
         self.add_comp('sky', *args, **kwargs)
 
+    ## model transform inplace
+    def trans_comp_to(self, index, mod, warn=True):
+        '''
+            transform component to a given model
+
+            Parameter:
+                index: int
+                    index of component to transform
+
+                mod: str, galfit model class or instance
+                    see `Model:mod_trans_to` for detail
+        '''
+        comp=self.comps[index]
+
+        self.comps[index]=comp.mod_trans_to(mod, warn=warn)
+
     # Functions to image
     def imcopy_to(self, fitsname):
         '''

@@ -118,9 +118,163 @@ class Model(GFSlotsDict):
                     to calculate suface brightness in Parameter (3)
                         instead of integrated magnitude
         '''
-        mods=set(['nuker', 'ferrer', 'king'])
+        mods=set(['nuker', 'ferrer', 'king', 'edgedisk'])
         name=cls.get_model_name()
         return name in mods
+
+    ## general way for transformation between models
+    def _gen_to_other_model(self, mod, warn=True):
+        '''
+            a general way to transform to other models
+
+            Parameter:
+                mod: galfit model class, or str
+        '''
+        assert self.is_gf_model_class(mod) or is_str_type(mod)
+        if is_str_type(mod):
+            mod=self.get_model_class(mod)
+
+        if warn:
+            m0=self.get_model_name()
+            m1=mod.get_model_name()
+            # warnings.warn('CAVEAT: general transform from \'%s\' to \'%s\'. '
+            #               'Use it cautiously' % (m0, m1))
+            print('WARNING: general transform from \'%s\' to \'%s\'. '
+                        'Use it cautiously' % (m0, m1))
+
+        m=mod()
+        m.Z=self.Z
+
+        # keys
+        keys_now=self.get_all_fitpars()
+        keys_set=[i for i in keys_now if self.is_val_known_key(i)]
+
+        keys_new=m.get_all_fitpars()
+
+        if warn:
+            # keys not found in current object
+            notfound=[i for i in keys_new if i not in set(keys_now)]
+
+            # unset fitting pars
+            keys_unset=[i for i in keys_now if not self.is_val_known_key(i)]
+
+            # keys to be discarded in new object
+            discarded=[i for i in keys_set if i not in set(keys_new)]
+
+            if notfound:
+                # warnings.warn('fitpars not found in current: [%s]' % (','.join(notfound)))
+                print('WARNING: fitpars not found in current: [%s]' % (','.join(notfound)))
+
+            if keys_unset:
+                # warnings.warn('fitpars to discard in new: [%s]' % (','.join(discarded)))
+                print('WARNING: unest pars in current: [%s]' % (','.join(keys_unset)))
+
+            if discarded:
+                # warnings.warn('fitpars to discard in new: [%s]' % (','.join(discarded)))
+                print('WARNING: fitpars to discard in new: [%s]' % (','.join(discarded)))
+
+        # set coincident keys
+        keys=[i for i in keys_new if i in set(keys_set)]
+        if keys:
+            vals=self.get_fitpars(keys, return_dict=True)
+            m.set_fitpars_val(vals)
+
+        return m
+
+    ### graph algorithm to find method for implicit models transform
+    @classmethod
+    def has_direct_trans(cls, mod):
+        '''
+            whether having direct transformation to a model
+                that means a method developed explicitly
+        '''
+        assert is_str_type(mod)
+        return hasattr(cls, 'to_'+mod)
+
+    def mod_trans_to(self, mod, **kwargs):
+        '''
+            transform to a mod
+
+            besides the explicitly designed method,
+                implicit transforming is also supported based on graph algorithm
+                    e.g. from sersic to edgedisk through expdisk
+
+            Parameter:
+                mod: str, galfit model class or instance
+        '''
+        if not is_str_type(mod):
+            if is_gf_model_instance(mod) or is_gf_model_class(mod):
+                mod=mod.get_model_name()
+            else:
+                raise Exception('only support str, galfit model class or instance, '
+                                'but got '+type(mod).__name__)
+
+        mod_now=self.get_model_name()
+
+        if mod==mod_now:
+            self.copy()
+
+        if self.has_direct_trans(mod):
+            return getattr(self, 'to_'+mod)(**kwargs)
+
+        # find a path from one model to another
+        ## explicit developed
+        mods=list(self.get_all_models().keys())
+        funcs={}
+        to_mod=False
+
+        for m in mods:
+            c=self.get_model_class(m)
+            for n in mods:
+                if n==m:
+                    continue
+
+                if c.has_direct_trans(n):
+                    if m not in funcs:
+                        funcs[m]={}
+                    funcs[m][n]=getattr(c, 'to_'+n)
+
+                    if n==mod:
+                        to_mod=True
+
+        if not to_mod: # no method from a model
+            raise Exception('cannot transform from %s to %s' % (mod_now, mod))
+
+        ## Dijkstra algorithm to find path from self to mod
+
+        funcslist={mod_now: []}  # functions list starting from current
+        tovisit=[mod_now]
+        visited=set()
+
+        while tovisit:
+            m=tovisit[0]
+            del tovisit[0]
+
+            visited.add(m)
+
+            if m not in funcs:
+                continue
+
+            fs=funcslist[m]
+            if mod in funcs[m]:  # found mod
+                funcslist[mod]=fs+[funcs[m][mod]]
+                break
+
+            for t in funcs[m]:
+                if t in visited:
+                    continue
+
+                tovisit.append(t)
+                funcslist[t]=fs+[funcs[m][t]]
+
+        if mod not in funcslist:  # no path to mod
+            raise Exception('cannot transform from %s to %s' % (mod_now, mod))
+
+        m=self
+        for f in funcslist[mod]:
+            m=f(m, **kwargs)
+
+        return m
 
     ## model name
     @classmethod
@@ -159,9 +313,9 @@ class Model(GFSlotsDict):
             whether `obj` is a class for galfit model
                 but it could not be Model
         '''
-        return issubclass(cls, Model) and cls is not Model
-
-    # reload prop setter
+        # issubclass() arg 1 must be a class
+        return isinstance(cls, type) and \
+               issubclass(cls, Model) and cls is not Model
 
     # stringlizing
     def line_for_print_model_name(self):
@@ -174,7 +328,7 @@ class Model(GFSlotsDict):
 
         return self._line_fmt3 % (key, name, comments)
 
-    def strprint_of_val_key(self, key):
+    def strprint_of_val_key(self, key, ignore_unset=False):
         '''
             reload function for val str for key
         '''
@@ -182,17 +336,20 @@ class Model(GFSlotsDict):
             if key=='2':  # merge '2' to '1'
                 return None
             if key=='1':
-                x0=self.get_val('1')
-                y0=self.get_val('2')
+                if (not ignore_unset) or \
+                   (self.is_val_known_key('1') and self.is_val_known_key('2')):
 
-                sx=x0.str_val()
-                sy=y0.str_val()
+                    x0=self.get_val('1')
+                    y0=self.get_val('2')
 
-                s='%s %s  %i %i' % (sx, sy, x0.state, y0.state)
+                    sx=x0.str_val()
+                    sy=y0.str_val()
 
-                return s
+                    s='%s %s  %i %i' % (sx, sy, x0.state, y0.state)
 
-        return super().strprint_of_val_key(key)
+                    return s
+
+        return super().strprint_of_val_key(key, ignore_unset=ignore_unset)
 
     # fitting parameters
     def get_all_fitpars(self):
@@ -351,22 +508,33 @@ class Sersic(Model):
     keys_sorted=[*'0123459', '10', 'Z']
 
     # transform to other models
-    def to_devauc(self):
+    def to_devauc(self, warn=True):
         '''
             to De Vaucouleurs model
         '''
-        n=self.n.val
+        name='devauc'
+        if warn:
+            if self.is_val_known_key('n') and self.n.val!=4:
+                name0=self.get_model_name()
+                print('WARNING: irreversible transform from \'%s\' to \'%s\''
+                        % (name0, name))
 
-        if n!=4:
-            warnings.warn('irreversible transform from Sersic to Devauc')
+        return self._gen_to_other_model(name, warn=False)
 
-        m=Devauc()
-        m.Z=self.Z
+    def to_expdisk(self, warn=True):
+        '''
+            to Exponential disk model
+        '''
+        name='expdisk'
+        if warn:
+            if self.is_val_known_key('n') and self.n.val!=1:
+                name0=self.get_model_name()
+                print('WARNING: irreversible transform from \'%s\' to \'%s\''
+                        % (name0, name))
 
-        # keys
-        keys=m.get_all_fitpars()
-        vals=self.get_fitpars(keys)
-        m.set_fitpars_val(vals)
+        m=self._gen_to_other_model(name, warn=False)
+        if m.is_val_known_key('rs'):
+            m.rs*=1/1.678   # re to rs
 
         return m
 
@@ -408,7 +576,61 @@ class Expdisk(Model):
         '4' : 'R_s (disk scale-length) [pix]',
     }
 
-    # model 
+    # transform to other models
+    def to_sersic(self, n_free=False, warn=False):
+        '''
+            to Sersic model
+
+            it compatible from expdisk to sersic
+        '''
+        name='sersic'
+        if warn:
+            name0=self.get_model_name()
+            # destructive, but not irreversible
+            print('Notation: transform from \'%s\' to \'%s\''
+                    % (name0, name))
+
+        m=self._gen_to_other_model(name, warn=False)
+        if m.is_val_known_key('rs'):
+            m.re*=1.678   # rs to re (effective radius)
+        m.n=1
+        m.n.freeze()  # explicitly freeze
+
+        # state of n is 0 by default
+        if n_free:
+            m.n.free()
+
+        return m
+
+    def to_edgedisk(self, warn=True):
+        '''
+            to Edge-on disk model
+
+            inverse operation is `Edgedisk.to_expdisk`
+        '''
+        name='edgedisk'
+        if warn:
+            name0=self.get_model_name()
+            # destructive, but not irreversible
+            print('WARNING: destructive transform from \'%s\' to \'%s\''
+                    % (name0, name))
+
+        m=self._gen_to_other_model(name, warn=False)
+
+        # scale length is '5' in edgedisk, but '4' in expdisk
+        rs=self.rs
+        m.set_prop('5', rs)
+
+        # scale height ('4' in edgedisk) from ba ('9' in expdisk) and scale length
+        ba=self.ba
+
+        hs=rs.val*ba.val
+        shs=Parameter.state_of_comb_pars(rs, ba)  # free/freeze
+
+        ## free to fit if rs or ba is free
+        m.set_prop('4', (hs, shs))
+
+        return m
 
 class Edgedisk(Model):
     '''
@@ -417,9 +639,9 @@ class Edgedisk(Model):
     # setup for model
     keys_sorted=[*'012345', '10', 'Z']
     keys_alias={
-        '3': ['sb'],
-        '4': ['dh'],
-        '5': ['dl'],
+        '3': ['mu', 'sb'],
+        '4': ['hs', 'dh'],  # scale height
+        '5': ['rs', 'dl'],  # scale length
     }
 
     keys_comment={
@@ -428,12 +650,67 @@ class Edgedisk(Model):
         '5' : 'disk scale-length [Pixels]',
     }
 
+    def to_expdisk(self, warn=True):
+        '''
+            to Exponential disk model
+
+            inverse operation is `Expdisk.to_edgedisk`
+        '''
+        name='expdisk'
+        if warn:
+            name0=self.get_model_name()
+            # destructive, but not irreversible
+            print('WARNING: destructive transform from \'%s\' to \'%s\''
+                    % (name0, name))
+
+        m=self._gen_to_other_model(name, warn=False)
+
+        # scale length is '4' in expdisk, but '5' in edgedisk
+        rs=self.rs
+        m.set_prop('4', rs)
+
+        # ba ('9' in expdisk) from scale height ('4' in edgedisk) and scale length
+        hs=self.hs
+
+        assert hs.val>0
+        ba=hs.val/rs.val
+        sba=Parameter.state_of_comb_pars(rs, hs)  # free/freeze
+
+        ## free to fit if rs or ba is free
+        m.set_prop('9', (ba, sba))
+
+        return m
+
 class Devauc(Model):
     '''
         de Vaucouleurs Profile
     '''
     # setup for model
     keys_sorted=[*'012349', '10', 'Z']
+
+    # transform to other models
+    def to_sersic(self, n_free=False, warn=False):
+        '''
+            to Sersic model
+
+            it compatible from de Vaucouleurs to sersic
+        '''
+        name='sersic'
+        if warn:
+            name0=self.get_model_name()
+            # destructive, but not irreversible
+            print('Notation: transform from \'%s\' to \'%s\''
+                    % (name0, name))
+
+        m=self._gen_to_other_model(name, warn=False)
+        m.n=4
+        m.n.freeze()  # explicitly freeze
+
+        # state of n is 0 by default
+        if n_free:
+            m.n.free()
+
+        return m
 
 class PSF(Model):
     '''

@@ -410,6 +410,19 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         key=self.get_std_key(key)
         return key in self.pars
 
+    def is_val_known_key(self, key):
+        '''
+            wheter a key has a known value
+                either set in `pars`,
+                or optional and having value in `values_default`
+        '''
+        if self.is_set_key(key):
+            return True
+        if not self.is_opt_key(key):
+            return False
+        key=self.get_std_key(key)
+        return key in self.values_default
+
     ### for unset optional keys
     def touch_opt_key(self, key):
         '''
@@ -451,7 +464,7 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         assert self.is_opt_key(prop)
 
         if prop not in self.values_default:
-            raise Exception('no default value for prop: '
+            raise AttributeError('no default value for prop: '
                                 +self.get_key_name(prop))
         return self.values_default[prop]
 
@@ -469,7 +482,7 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         '''
         prop=self.get_std_key(prop)
         if prop not in self.keys_valid:
-            raise Exception('unsupported prop for get: '+self.get_key_name(prop))
+            raise AttributeError('unsupported prop for get: '+self.get_key_name(prop))
 
         if prop not in self.pars:
             # if not set, use value in values_default
@@ -479,7 +492,7 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
                 else:
                     return self.get_default_val(prop)
             else:
-                raise Exception('unset parameter: '+self.get_key_name(prop))
+                raise AttributeError('unset parameter: '+self.get_key_name(prop))
 
         return self.pars[prop]
 
@@ -580,13 +593,20 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         else:
             return self.strprint_join_vec([self.strprint_of_val(s) for s in val])
 
-    def strprint_of_val_key(self, key):
+    def strprint_of_val_key(self, key, ignore_unset=False):
         '''
             string used for print for val corresponding to val
 
             return str or None
                 if None, hint that it may be omitted
+
+            Parameter:
+                ignore_unset: bool
+                    ignore unset parameters
         '''
+        if ignore_unset and not self.is_val_known_key(key):
+            return None
+
         val=self.get_val(key)
         return self.strprint_of_val(val)
 
@@ -602,12 +622,15 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
         '''
         return ' '.join(list_str)
 
-    def linefields_for_print(self, key):
+    def linefields_for_print(self, key, **kwargs):
         '''
             return a list of 2 or 3 string, [key, val, (comments)]
                 which is used to contruct a line for a key
+
+            optional kwargs:
+                ignore_unset: bool, for `strprint_of_val_key`
         '''
-        sval=self.strprint_of_val_key(key)
+        sval=self.strprint_of_val_key(key, **kwargs)
         if sval is None:
             return []
 
@@ -622,12 +645,15 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
 
     _line_fmt2='%s %s'        # formt for 2 fields
     _line_fmt3='%s %s # %s'   # formt for 3 fields
-    def line_for_print(self, key):
+    def line_for_print(self, key, **kwargs):
         '''
             return a string for a key used to print as a line
                 or None, to hint to omit this key
+
+            optional kwargs:
+                ignore_unset: bool
         '''
-        fields=tuple(self.linefields_for_print(key))
+        fields=tuple(self.linefields_for_print(key, **kwargs))
         if len(fields)<1:
             return None
 
@@ -638,28 +664,37 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
 
         return fmt % fields
 
-    def iter_lines(self):
+    def iter_lines(self, **kwargs):
         '''
             iteration to return lines of keys
+
+            optional kwargs:
+                ignore_unset: bool
         '''
         for key in self.keys_sorted:
-            s=self.line_for_print(key)
+            s=self.line_for_print(key, **kwargs)
             if s is not None:
                 yield s
 
-    def str_print(self):
+    def str_print(self, **kwargs):
         '''
             string output to print
+
+            optional kwargs:
+                ignore_unset: bool
         '''
-        lines=list(self.iter_lines())
+        lines=list(self.iter_lines(**kwargs))
         return '\n'.join(lines)
 
     ## __str__
-    def __str__(self):
+    def __str__(self, **kwargs):
         '''
             user-friendly
+            
+            optional kwargs:
+                ignore_unset: bool
         '''
-        return self.str_print()
+        return self.str_print(**kwargs)
 
     # def __repr__(self):
     #     '''
