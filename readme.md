@@ -10,4 +10,4 @@ There are different ways to handle constraint file. In previous version, such a 
 
 But this is complex, and is not so frequently used for photometrical fitting. At present, a much simpler way is adopted, where treatment of contraint file is indenpendent on the galfit input file. The constraint file is just a string, like input image, mask file and so on. It is not concerned what is in the file.
 
-Instead of developing a class to hold constraints in previous version, functions to create constraint file are designed here. They could be used to create an new file or modify an existed one.
+In current version, a compromising way is used. Constraint file is loaded and parsed, semantically and optically, but independent with parsing of galfit input file. Semantical parsing is helpful to create and modify constraint file.
