@@ -6,7 +6,7 @@
 
 import re
 
-from collection import is_str_type
+from collection import is_str_type, is_int_type, inverse_alias
 
 class Constraints:
     '''
@@ -42,16 +42,60 @@ class Constraints:
                 line=line.strip()
                 if (not line) or line[0]=='#':
                     continue
-                self.add_cons_from_line(line)
+                self.add_cons(line)
 
     ## add method
-    def add_cons_from_line(self, line):
+    def add_cons(self, *args):
         '''
-            add a constraint rule from a line,
-                with format in galfit constraint file
+            add a constraint rule from a line or other arguments
+
+            2 kinds of arguments allowed:
+                1 argument: line in galfit constraint file
+                3-4 argumens: comps, par, type_cons[, range]
+            see `ConsRule.__init__` for detail
         '''
-        cons=ConsRule(line)
-        self.rules_cons.append(cons)
+        self.rules_cons.append(ConsRule(*args))
+
+    ### frequently used functions
+    def add_hard_cons_position(self, comps, p):
+        '''
+            add hard constraint to position parameters, like x, y
+
+            constraint type: hard_offset
+        '''
+        self.add_cons(comps, p, 'hard_offset')
+
+    def add_hard_cons_to_xy(self, *comps):
+        '''
+            add hard_offset constraint to xy parameters
+
+            frequently used for fitting with homocentric components,
+                like homocentric bulge/disk
+        '''
+        self.add_cons(comps, 'x', 'hard_offset')
+        self.add_cons(comps, 'y', 'hard_offset')
+
+    def add_range_to_par(self, comp, p, minmax):
+        '''
+            constrain a parameter to a range `minmax`
+
+            constraint type: soft_fromto
+
+            :argument comp must be a integral
+        '''
+        assert is_int_type(comp)
+        self.add_cons([comp], p, 'soft_fromto', minmax)
+
+    def add_relrange_to_par(self, comp, p, minmax):
+        '''
+            constrain a parameter to a relative range `minmax`
+
+            constraint type: soft_shift
+
+            :argument comp must be a integral
+        '''
+        assert is_int_type(comp)
+        self.add_cons([comp], p, 'soft_shift', minmax)
 
     # stringlizing
     def __str__(self):
@@ -96,6 +140,13 @@ class ConsRule:
 
             soft, ratio range: e.g. '1/2    r    t1 t2'
                 keep r1/r2 within values from v1 to v2
+
+        2 ways to construct a constraint rule
+            -- ConsRule(line)
+                line is of the format in galfit constraint file
+
+            -- ConsRule(comps, par, type_cons[, range])
+                range is only required for soft constraint
     '''
     # re pattern
     fmt_ptn=r'^\s*(%s)\s+([a-zA-Z\d]+)\s+(%s)(?:\s*$|\s+#)'
@@ -133,7 +184,18 @@ class ConsRule:
     )
 
     # constraint type
-    types_cons=set(ptns_cons.keys())
+    types_cons_valid=set(ptns_cons.keys())
+
+    # alias of constraint type
+    alias_types_cons=dict(
+        hard_offset=['hard_diff'],
+        # hard_ratio=[],
+        # soft_fromto=[],
+        soft_shift=['soft_vary'],
+        soft_offset=['soft_diff'],
+        # soft_ratio=[],
+    )
+    map_alias_types=inverse_alias(alias_types_cons)
 
     # seperation of components: mainly used for output
     seps_cons=dict(
@@ -145,21 +207,90 @@ class ConsRule:
         soft_ratio='/',
     )
 
-    def __init__(self, line=None):
+    def __init__(self, *args):
         '''
             3 properties for a constraint rule
                 comps: components containing parameters with constraint
+                    index of components starts from 1, not 0
                 par: parameter with constraint
-                type: constraint type
+                vals: constraint type
+                    `vals` has format (type_cons[, range])
+                        where range is only required for soft constraint
 
-            it could be initiated by a line in constraint file
+            arguments to initiate an instance
+                1 argument: line in galfit constraint file
+
+                3-4 argumens: comps, par, type_cons[, range]
         '''
-        self.comps=None
-        self.par=None
-        self.vals=None   # values of constraint
+        self.comps=[]
+        self.par=''
 
-        if line is not None:
-            self.load_line(line)
+        # type of constraint: hard_{offset,ratio}, soft_{fromto,shift,offset,ratio}
+        self.type_cons=''
+        self.range_cons=[]   # range of constraint, only required for soft type
+
+        if len(args)==1:
+            self.load_line(args[0])
+        elif len(args)==3 or len(args)==4:
+            self.set_cons(*args)
+        else:
+            raise Exception('only allow 1,3,4 argumens. But got %i' % len(args))
+
+    # set functions
+    def set_type_cons(self, t):
+        '''
+            set type of constraint
+
+            bottom function
+
+            alias of constraint name is supported
+        '''
+        if t in self.map_alias_types:
+            t=self.map_alias_types[t]
+        
+        assert t in self.types_cons_valid
+        self.type_cons=str(t)
+
+    def set_cons(self, comps, par, type_cons, range_cons=None):
+        '''
+            set a constraint rule
+
+            bottom function.
+                other setter, like `load_line`, would call it
+
+            Parameter:
+                comps: indices of components to constrain
+
+                par: parameter to constrain
+
+                type_cons: type of constraint
+                    6 types: hard_{offset,ratio},
+                             soft_{fromto,shift,offset,ratio}
+
+                range_cons: range of constraint
+                    optional, only required for soft constraint
+
+            validity of arguments are also checked
+        '''
+        # type of constraint
+        self.set_type_cons(type_cons)
+
+        # comps
+        self.comps=[int(i) for i in comps]
+
+        ## check number of comps
+        n=self.num_comps_req_of_cons()
+        if n is not None:
+            assert n==len(self.comps)
+
+        # par
+        assert is_str_type(par)
+        self.par=str(par)
+
+        # range of constraint
+        if self.is_soft_cons():
+            assert len(range_cons)==2
+            self.range_cons=[float(i) for i in range_cons]
 
     def load_line(self, line):
         '''
@@ -179,31 +310,70 @@ class ConsRule:
             return
 
         comps, par, *vals=m.groups()
-        self.par=par
 
         s=self.seps_cons[t]
         if s:
-            self.comps=[int(i) for i in comps.split(s)]
+            comps=[int(i) for i in comps.split(s)]
         else:
-            self.comps=[int(comps)]
+            comps=[int(comps)]
 
-        if t.startswith('hard_'):
-            self.vals=(t,)
-        else:
-            self.vals=(t, *[float(i) for i in vals[-2:]])
+        args=[t]  # argument to set to constraint
+        if self.is_soft_cons(t):
+            args.append([float(i) for i in vals[-2:]])
+
+        self.set_cons(comps, par, *args)
+
+    # functions about constraint type
+    def is_soft_cons(self, t=None):
+        '''
+            to determine whether a type or the instance self is soft constraint
+        '''
+        if t is None:
+            t=self.type_cons
+
+        return t.startswith('soft_')
+
+    def num_comps_req_of_cons(self, t=None):
+        '''
+            required number of components for a constraint or self
+
+                if no requirement, return None
+
+            3 kinds:
+                hard_{offset,ratio}: no requirement
+
+                soft_{fromto,shift}: 1
+
+                soft_{offset,ratio}: 2
+        '''
+        if t is None:
+            t=self.type_cons
+
+        if not self.is_soft_cons(t):
+            return None
+
+        if t[len('soft_'):] in {'fromto', 'shift'}:
+            return 1
+
+        # else: soft_{offset,ratio}
+        return 2
+
 
     # stringlizing
     def __str__(self):
         '''
             string of the constraint rule
         '''
+        if not self.comps:
+            return ''
+
         fmt='%s    %s    %s' # format of the string
 
         # parameter
         par=self.par
 
         # componentss
-        t=self.vals[0]
+        t=self.type_cons
         comps=self.seps_cons[t].join(map(str, self.comps))
 
         # constraint values
@@ -214,7 +384,7 @@ class ConsRule:
                 fmt_v='%g to %g'
             else:
                 fmt_v='%g %g'
-            vals=fmt_v % tuple(self.vals[-2:])
+            vals=fmt_v % tuple(self.range_cons)
 
         return fmt % (comps, par, vals)
 
