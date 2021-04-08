@@ -526,6 +526,15 @@ class SlotsDict(object, metaclass=MetaSlotsDict):
                                     % (name, str(values_valid)))
         self.pars[prop]=val
 
+    ## reset all keys
+    def reset(self):
+        '''
+            reset the collection
+
+            clean all values in `pars`
+        '''
+        self.pars.clear()
+
     ## set from dict/pair
     def set_prop_from_vals(self, *args):
         '''

@@ -10,38 +10,101 @@
         which is labeled by serveral starting chars followed with `)`
 '''
 
+import os
 import re
 
 from header import Header
 from model import Model
 from collection import is_int_type, is_str_type
+from tools import gfname
 
 class GalFit:
     '''
         class to represent whole galfit file
+
+        there are mainly two parts in the file: header and components
+
+        header contains setup to run the galfit
+
+        some parameters in header relate to a file in system
+            like input image, mask file, sigma fits, et al.
+        To handle them, a path information is also stored in the information
+            which is initiated by the path of galfit file
     '''
-    def __init__(self, fname=None):
+    def __init__(self, fname=None, **kwargs):
         '''
             initiation could be done from a galfit file,
                 or just left as a empty one, waiting to set up
+
+            properties:
+                header, comps: information from the galfit
         '''
         # two parts: header and components (models)
-        self.header=Header()
-        self.comps=[]     # collection of components
+        self.__dict__['header']=Header()
+        self.__dict__['comps']=[]     # collection of components
 
-        # self.gfdir=None   # dirctory of the file
+        self.__dict__['gfpath_init']=None   # path of the file
 
         # load file
         if fname is None:
             return
 
-        self.load_file(fname)
+        self.load_file(fname, **kwargs)
+
+    # reset
+    def reset(self):
+        '''
+            reset the object
+        '''
+        self.header.reset()
+        self.comps.clear()
+        self.gfpath_init=None
 
     # load galfit file
-    def load_file(self, fname):
+    def load_file(self, fname, dir_gf=None, reset=True):
         '''
             load a galfit file
+
+            :param fname
+                int or filename
+
+                if int, it a file in current directory
+                    with file name galfit.NN, via function `gfname`
+
+            2 kinds of path information to be set
+                gfpath_init: path of loading file
+                    it is used when writing to a file,
+                        hinting the starting point
+                    not changed until another loading
+                dir_hdr in header: directory containing files in header
+                    like input image, sigma fits, mask file
+                    it could be change during modifying
+                        via methods in `Header`
+
+            Parameters:
+                dir_gf: directory of the galfit file
+
+                reset: bool
+                    if true, all contents are to reset
         '''
+        if reset:
+            self.reset()
+
+        # galfit.NN
+        if is_int_type(fname):
+            fname=gfname(fname)
+
+        if dir_gf is not None:
+            fname=os.path.join(dir_gf, fname)
+
+        # gfdir
+        assert os.path.isfile(fname)
+        fabs=os.path.abspath(fname)
+        self.header.set_dir_hdr(os.path.dirname(fabs))
+
+        ## initial filename, absolute path
+        self.gfpath_init=fabs
+
         # re pattern for labeled line: N) xxx ... # comments
         ptn_lab=re.compile(r'^\s*([0-9a-zA-Z.]+)\)\s+([^#]+?)(?:\s+#|\s*$)')
 
@@ -103,6 +166,29 @@ class GalFit:
 
         return '\n'.join(lines)
 
+    ## write to file
+    def writeto(self, fname):
+        '''
+            write to a file
+
+            if it is created from an existed file,
+                a comment is added, hinting the initial file
+        '''
+        # galfit.NN
+        if is_int_type(fname):
+            fname=gfname(fname)
+
+        with open(fname, 'w') as f:
+            # information of initial file
+            if self.gfpath_init is not None:
+                dirnow=os.path.dirname(fname)
+                frel=os.path.relpath(self.gfpath_init, dirnow)
+
+                f.write('# Modify from %s\n\n' % frel)
+
+            # write main part
+            f.write(str(self))
+
     # fetch attribution
     def __getitem__(self, prop):
         '''
@@ -119,11 +205,6 @@ class GalFit:
         else:
             raise Exception('index must be str or integer, '
                             'not '+type(prop).__name__)
-
-    ## write to file
-    def writeto(self, fname):
-        with open(fname, 'w') as f:
-            f.write(str(self))
 
     # functions to model
     ## fitting parameter
@@ -233,7 +314,20 @@ class GalFit:
 
         self.comps[index]=comp.mod_trans_to(mod, warn=warn)
 
-    # Functions to image
+    # functins to header
+    '''
+        some functions are implemented via __getattr__
+            properties:
+                dir_hdr
+            methods:
+                set_dir_hdr,
+                chdir_to, chdir_to_subd, chdir_to_parent
+                get_file_path
+
+                set_gf_mod, set_fit_mod, set_create_mod
+    '''
+
+    ## to FITS file
     def imcopy_to(self, fitsname):
         '''
             work like IRAF task imcopy, but to input image
@@ -245,3 +339,34 @@ class GalFit:
             work like IRAF task imedit, but to input image
         '''
         pass
+
+    ## header as a proxy for some methods
+    def __getattr__(self, prop):
+        '''
+            transfer calling for parameters of header and some methods
+                to self.header
+
+                supported methods:
+                    dir_hdr, set_dir_hdr, to_abs_dir_hdr,
+                    chdir_to, chdir_to_subd, chdir_to_parent,
+                    get_file_path
+        '''
+        # header proxy
+        props_hdr={'dir_hdr', 'set_dir_hdr', 'to_abs_dir_hdr',
+                   'chdir_to', 'chdir_to_subd', 'chdir_to_parent',
+                   'get_file_path',
+                   'set_gf_mod', 'set_fit_mod', 'set_create_mod',}
+        if prop in props_hdr or prop in self.header:
+            # `in` methods for parameters in header
+            return getattr(self.header, prop)
+
+        super().__getattr__(prop)
+
+    def __setattr__(self, prop, val):
+        '''
+            setter to header parameter directly from header
+        '''
+        if prop in self.header:
+            return self.header.__setattr__(prop, val)
+
+        super().__setattr__(prop, val)
