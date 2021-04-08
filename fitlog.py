@@ -1,186 +1,336 @@
 #!/usr/bin/env python3
 
 '''
-cope with standard output file of galfit--fit.log
+    module to handle fit.log
+        a standard output file of galfit
+
+    fit.log contains several logs
+        each with information of every galfit running in its directory
+
+    In a log, there are 3 kinds of data:
+        starting information:
+            input/ouput galfit file, input/output image
+
+        result of optimized parameters:
+            values and its uncertainty
+            there are also flags to hint state of fitting
+                e.g. quoted with '**', meaning unreliable result
+
+        goodness of this fitting:
+            chi-square, ndof and chisq/ndof
+
+    3 class in use:
+        FitLogs: collection of logs
+        FitLog: for one log
+        LogMod: for fitting result
+
+    sometimes, only starting information is cared.
+        for example, to find output file of last galfit running
+    Considering this, the parseing of fitting result could be delayed until needed
+        At begining, only lines containg these data is stored
 '''
 
+import os
 import re
 
-from .tools import gfname
-
-# # convert template file number to its name
-# def gfname(num):
-#     return 'galfit.%02i' % num
+from tools import gfname
+from collection import inverse_alias, is_int_type
 
 class FitLogs:
-    def __init__(self, filename='fit.log'):
+    '''
+        class for collection of logs
+    '''
+
+    # some re pattern to parse fit log
+    ## input/output files for galfit running
+    strs_files=r'Input image|Init\. par\. file|Restart file|Output image'
+    ptn_files=re.compile(r'(%s)\s+:\s+(\S+)' % strs_files)
+
+    ## goodness of fitting, chisq and ndof
+    strs_chisqs=r'Chi\^2|ndof|Chi\^2/nu'
+    ptn_chisqs=re.compile(r'(%s)\s+=\s+([-+\d\.eE]+)' % strs_chisqs)
+
+    # init
+    def __init__(self, filename=None, **kwargs):
+        '''
+            load fit.log to initiate an instance
+
+            optional kwargs are used in `load_file`. see `load_file` for detail
+            some important arguments:
+                dir_log: directory for the log
+        '''
         self.logs=[]
 
-        self._load_file(filename)
+        if filename:
+            self.load_file(filename, **kwargs)
 
-    def _load_file(self, filename):
+    ## load fit.log
+    def load_file(self, filename='fit.log', dir_log=None, parse_pars=False):
+        '''
+            load fit.log file
+
+            Parameters:
+                dir_log: directory of the log
+
+                parse_pars: bool
+                    whether to parse parameter lines
+
+            a new log is starting when meeting line starting with 'Input image'
+        '''
+        if dir_log is not None:
+            filename=os.path.join(dir_log, filename)
+
+        # parse file
         with open(filename) as f:
-            log=FitLog()
             for line in f:
                 line=line.rstrip()
-                if not line or line=='-'*77:
+                if not line or line.startswith('-'*10):
+                    # ignore lines starting with too many '-'
                     continue
-                
-                key, *fields=line.split(':', maxsplit=1)
-                if len(key)==16:
-                    key='_'.join([s.lower() for s in key.split()])
-                    key=key.replace('.', '')
-                    val=fields[0].strip()
 
-                    if key=='input_image':
-                        log=FitLog(val)
-                        self.logs.append(log)
-                    else:
-                        log[key]=val
-                elif line.startswith(' Chi^2'):
-                    for eqstr in line.split(','):
-                        log._set_chi_fromlog(eqstr)
-                else:
-                    log.append_lines(line)
+                key_files=self.ptn_files.findall(line)
+                if key_files:
+                    for k, fname in key_files:
+                        if k=='Input image':
+                            log=FitLog()
+                            self.logs.append(log)
 
-    def parse_all(self):
+                        log.set_prop_fromlog(k, fname)
+                    continue
+
+                key_chisqs=self.ptn_chisqs.findall(line)
+                if key_chisqs:
+                    for k, val in key_chisqs:
+                        log.set_prop_fromlog(k, val)
+                    continue
+
+                # append other non-empty line
+                log.add_pars_line(line)
+
+        if parse_pars:
+            self.parse_pars_lines()
+
+    ## parse parameter lines
+    def parse_pars_lines(self):
+        '''
+            parse parameter lines in all logs
+        '''
         for log in self.logs:
-            log._parse_lines()
+            log.parse_pars_lines()
 
-    def _get_log(self, logs, ind):
-        if not logs:
-            raise Exception('no log found')
+    # fetch functions
+    def get_log(self, prop):
+        '''
+            fetch a log
+        '''
+        if is_int_type(prop):
+            return self.logs[prop]
 
-        log=logs[ind]
-        if not hasattr(log, 'mods'):
-            log._parse_lines()
-        return log
+        raise Exception('unexpected type of prop: %s' % type(prop).__name__)
 
-    def get_log(self, *args, ind=-1):
-        if not args:
-            return self.get_log_index(ind)
+    @property
+    def last_log(self):
+        '''
+            return last log
+        '''
+        if not self.logs:
+            return None
 
-        if len(args)==1:
-            return self.get_log_result(*args, ind)
+        return self.logs[-1]
 
-        if len(args)==2:
-            return self.get_log_init_result(*args, ind)
+    ## user-friendly functions: to work like list
+    def __getitem__(self, prop):
+        '''
+            magic medthod, user-friendly
+        '''
+        return self.get_log(prop)
 
-        if len(args)==3:
-            return self.get_log_init_result(*args)
-
-        raise Exception('expect 3 positional arguments at most, '+
-                        'but were given %i' % len(args))
-
-    def get_log_index(self, ind):
-        return self._get_log(self.logs, ind)
-
-    def get_log_init(self, init, ind=-1):
-        if type(init)==int:
-            init=gfname(init)
-        logs=[l for l in self.logs if l.init_file==init]
-        return self._get_log(logs, ind)
-
-    def get_log_result(self, result, ind=-1):
-        if type(result)==int:
-            result=gfname(result)
-        logs=[l for l in self.logs if l.result_file==result]
-        return self._get_log(logs, ind)
-
-    def get_log_init_result(self, init, result, ind=-1):
-        if type(init)==int:
-            init=gfname(init)
-        if type(result)==int:
-            result=gfname(result)
-
-        logs=[l for l in self.logs
-                    if l.init_file==init and l.result_file==result]
-        return self._get_log(logs, ind)
+    ### support len()
+    def __len__(self):
+        '''
+            number of logs
+        '''
+        return len(self.logs)
 
 class FitLog:
     '''
-    container for log of one galfit
+        class for a log of one galfit running
+
+        3 kinds of data:
+            starting information:
+                input/ouput galfit file, input/output image
+
+            result of optimized parameters:
+                values and its uncertainty
+                there are also flags to hint state of fitting
+                    e.g. quoted with '**', meaning unreliable result
+
+            goodness of this fitting:
+                chi-square, ndof and chisq/ndof
+
+        parsing of fitting result would be delayed until needed
     '''
-    def __init__(self, input_image='', output_image='',
-                       init_file='', result_file=''):
-        self.input_image=input_image
-        self.output_image=output_image
-        self.init_file=init_file
-        self.result_file=result_file
 
-        self.lines=[]
-        #self.mods=[]
+    # map between key name in fit.log and property in class
+    keyname_props=dict(
+        input_image=['Input image'],
+        output_image=['Output image'],
+        init_file=['Init. par. file'],
+        result_file=['Restart file'],
+        chisq=['Chi^2'],
+        ndof=['ndof'],
+        reduce_chisq=['Chi^2/nu'],
+    )
+    map_keyname_props=inverse_alias(keyname_props)
 
-    def append_lines(self, line):
-        self.lines.append(line)
+    # init
+    def __init__(self):
+        '''
+            initiation of FitLog
+                only to create some properties:
+                    input_image, output_image
+                    init_file, result_file
 
-    def _set_chi_fromlog(self, eqstr):
-        key, val=[i.strip() for i in eqstr.split('=')]
-        if key=='Chi^2':
-            self.chisq=float(val)
-        elif key=='ndof':
-            self.ndof=int(val)
-        elif key=='Chi^2/nu':
-            self.reduce_chisq=float(val)
-        else:
-            raise Exception('unexpected key for chi: %s' % key)
+                    lines_pars, mods_pars
 
-    def _parse_lines(self):
-        lines=self.lines
-        self.mods=[]
-        for vals, uncerts in zip(lines[0::2], lines[1::2]):
-            self.mods.append(LogMod(vals, uncerts))
+                    chisq, ndof, reduce_chisq
 
-    def __setitem__(self, prop, val):
-        if prop=='init_par_file':
-            prop='init_file'
-        elif prop=='restart_file':
-            prop='result_file'
+            such an instance could be created with no input arguments
+
+        '''
+        self.input_image=''
+        self.output_image=''
+        self.init_file=''
+        self.result_file=''
+
+        # lines for fitting parameters
+        self.lines_pars=[]
+
+        # fitting result. collectin of LogMod instances
+        self.mods_pars=[]
+
+        # goodness of fitting
+        self.chisq=0
+        self.ndof=0
+        self.reduce_chisq=0
+
+    # set input/output files of one galfit running
+    def set_prop_fromlog(self, key, val):
+        '''
+            set log property from (key, val) pair in fit.log
+                including: files information and chisqs
+
+            Parameters:
+                key: key name in starndard fit.log file
+        '''
+        assert key in self.map_keyname_props
+
+        prop=self.map_keyname_props[key]
+
+        # float value for chisq
+        if prop in {'chisq', 'reduce_chisq'}:
+            val=float(val)
+        elif prop=='ndof':
+            val=int(val)
+
+        # set
         setattr(self, prop, val)
 
+    # add par line
+    def add_pars_line(self, line):
+        '''
+            add line for fitting result of component parameters
+        '''
+        self.lines_pars.append(line)
+
+    # parse parameter lines
+    def parse_pars_lines(self):
+        '''
+            parse lines of components parameters, `lines_pars`
+        '''
+        lines=self.lines_pars
+        assert len(lines) % 2 == 0  # must exist in pairs
+
+        for line_val, line_uncert in zip(lines[0::2], lines[1::2]):
+            self.mods_pars.append(LogMod(line_val, line_uncert))
+
 class LogMod:
+    '''
+        class for fitting result of one component
+    '''
+    # re pattern for an item in line of values or uncertainties
+    item_ends='][()*,}{'
+    ptn_item=re.compile(r'^([{0}]*)([^{0}]*)([{0}]*)$'.format(item_ends))
+
+    # init
     def __init__(self, *lines, name=''):
-        self.name=name
+        '''
+            initiate LogMod with two lines
+                one for values and another for uncertainties
+        '''
+        self.name=name  # component name
         self.vals=[]
         self.uncerts=[]
         self.flags=[]
 
         if lines:
-            self._parse_lines(*lines)
+            self.load_lines(*lines)
 
-    def _parse_lines(self, vals, uncerts):
-        self._parse_vals(vals)
-        self._parse_uncerts(uncerts)
+    def load_lines(self, line_val, line_uncert):
+        '''
+            load two lines to set the instance
+                for values and uncertainties respectively
+
+            values, uncertainties and flags of parameters
+                are extracted from these two lines
+        '''
+        self.load_line_val(line_val)
+        self.load_line_uncert(line_uncert)
 
         if not len(self.vals)==len(self.uncerts)==len(self.flags):
             raise Exception('mismatch of number after line-parse')
 
-    def _parse_vals(self, line):
+    def load_line_val(self, line):
+        '''
+            parse line of values
+
+            values and flags are extracted
+        '''
         name, vals=line.split(':', maxsplit=1)
         self.name=name.strip().lower()
 
         for field in vals.split():
-            val, flag=self._parse_item(field)
+            val, flag=self.parse_item(field)
             if val==None:
                 continue
             self.vals.append(val)
             self.flags.append(flag)
 
+        # ignoring first two items for model sky, which are center of image
         if self.name=='sky':
             self.vals[:2]=[]
             self.flags[:2]=[]
 
-    def _parse_uncerts(self, line):
+    def load_line_uncert(self, line):
+        '''
+            parse line of uncertainties
+
+            only extract uncertainties
+                ignoring flags
+        '''
         for field in line.split():
-            val, flag=self._parse_item(field)
+            val, flag=self.parse_item(field)
             if val==None:
                 continue
             self.uncerts.append(val)
 
-    def _parse_item(self, val):
-        ends='][()*,}{'
-        pattern=r'^([{0}]*)([^{0}]*)([{0}]*)$'.format(ends)
-        m=re.match(pattern, val)
+    def parse_item(self, item):
+        '''
+            parse an item in line of values or uncertainties
+
+            return (value, flag)
+        '''
+        m=self.ptn_item.match(item)
         if not m:
             return None, None
 
@@ -194,11 +344,11 @@ class LogMod:
         head, tail=groups[0], groups[2]
         if head and tail:
             mark=head[-1]+tail[0]
-            if mark=='**':
+            if mark==r'**':
                 flag='unreliable'
-            elif mark=='[]':
+            elif mark==r'[]':
                 flag='fixed'
-            elif mark=='{}':
+            elif mark==r'{}':
                 flag='constrainted'
 
         return val, flag
