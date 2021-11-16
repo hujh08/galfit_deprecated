@@ -6,7 +6,7 @@
 
 import re
 
-from collection import is_str_type, is_int_type, inverse_alias
+from .collection import is_str_type, is_int_type, inverse_alias
 
 class Constraints:
     '''

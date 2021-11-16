@@ -5,7 +5,7 @@
         with property val, state, uncertainty (optional)
 '''
 
-from collection import is_str_type, is_int_type, is_vec_type, is_number_type
+from .collection import is_str_type, is_int_type, is_vec_type, is_number_type
 
 class Parameter:
     '''

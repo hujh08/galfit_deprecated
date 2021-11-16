@@ -14,8 +14,8 @@
 
 import warnings
 
-from collection import GFSlotsDict, is_str_type, is_vec_type
-from parameter import Parameter
+from .collection import GFSlotsDict, is_str_type, is_vec_type
+from .parameter import Parameter
 
 class Model(GFSlotsDict):
     '''

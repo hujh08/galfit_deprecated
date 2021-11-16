@@ -33,8 +33,8 @@
 import os
 import re
 
-from tools import gfname
-from collection import inverse_alias, is_int_type
+from .tools import gfname
+from .collection import inverse_alias, is_int_type
 
 class FitLogs:
     '''

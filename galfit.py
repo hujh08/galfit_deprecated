@@ -13,10 +13,10 @@
 import os
 import re
 
-from header import Header
-from model import Model
-from collection import is_int_type, is_str_type
-from tools import gfname
+from .header import Header
+from .model import Model
+from .collection import is_int_type, is_str_type
+from .tools import gfname
 
 class GalFit:
     '''

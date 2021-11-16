@@ -6,7 +6,7 @@
 
 import os
 
-from collection import GFSlotsDict, is_int_type
+from .collection import GFSlotsDict, is_int_type
 
 class Header(GFSlotsDict):
     '''
