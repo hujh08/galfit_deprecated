@@ -7,6 +7,7 @@
 import os
 
 from .collection import GFSlotsDict, is_int_type
+from .constraint import Constraints
 
 class Header(GFSlotsDict):
     '''
@@ -199,8 +200,26 @@ class Header(GFSlotsDict):
             mod=1
         self.set_gf_mod(mod)
 
-
     # functions to handle parameters related with file
+    def load_constraints(self):
+        '''
+            load constraint file to `Constraints` object
+
+            if 'none', return empty object
+        '''
+        fname=self.get_file_path('constraints')
+        if fname=='none':
+            return Constraints()
+
+        return Constraints(fname)
+
+    def set_constraints(self, fname):
+        '''
+            set constraints
+        '''
+        fname=os.path.relpath(fname, self.dir_hdr)
+        self.set_prop('constraints', fname)
+
     ## only to `dir_hdr`
     def set_dir_hdr(self, d, force_abs=False):
         '''

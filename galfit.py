@@ -353,6 +353,7 @@ class GalFit:
         '''
         # header proxy
         props_hdr={'dir_hdr', 'set_dir_hdr', 'to_abs_dir_hdr',
+                   'load_constraints', 'set_constraints',
                    'chdir_to', 'chdir_to_subd', 'chdir_to_parent',
                    'get_file_path',
                    'set_gf_mod', 'set_fit_mod', 'set_create_mod',}
@@ -370,3 +371,22 @@ class GalFit:
             return self.header.__setattr__(prop, val)
 
         super().__setattr__(prop, val)
+
+    def __len__(self):
+        '''
+            number of components
+        '''
+        return len(self.comps)
+
+    def __getitem__(self, i):
+        '''
+            get ith components
+        '''
+        assert is_int_type(i) or isinstance(i, slice)
+        return self.comps[i]
+
+    def __iter__(self):
+        '''
+            iter along components
+        '''
+        return iter(self.comps)

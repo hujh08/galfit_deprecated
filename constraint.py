@@ -111,6 +111,13 @@ class Constraints:
         with open(fname, 'w') as f:
             f.write(str(self)+'\n')
 
+    # magic method
+    def __len__(self):
+        '''
+            number of rules
+        '''
+        return len(self.rules_cons)
+
 class ConsRule:
     '''
         class for one constraint rule
