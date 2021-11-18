@@ -46,6 +46,13 @@ class Parameter:
         assert args  # at least one argument
         self.update(*args)
 
+    # determine function
+    def is_frozen(self):
+        return self.state==self.FREEZE
+
+    def is_free(self):
+        return not self.is_frozen()
+
     # basic methods to set: val, state, uncert
     def set_val(self, v):
         '''

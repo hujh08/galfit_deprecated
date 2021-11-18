@@ -437,7 +437,7 @@ class Model(GFSlotsDict):
 
     def get_fitpars(self, keys=None, fetch_val=False, return_dict=False):
         '''
-            return list of  fitting parameters
+            return list of fitting parameters
 
             if not `fetch_val`, return list of objects for parameters
                 otherwise, only fetch its value
@@ -498,6 +498,15 @@ class Model(GFSlotsDict):
             free part/all fitting parameters
         '''
         self.set_fit_state('freeze', pars)
+
+    ### get free parameters
+    def get_free_pars(self):
+        '''
+            get parameters free to fit
+        '''
+        return [self.get_key_name(k)
+                    for k, v in self.get_fitpars(return_dict=True).items()
+                        if v.is_free()]
 
 ## frequently used models
 class Sersic(Model):
